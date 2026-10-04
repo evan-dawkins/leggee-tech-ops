@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="description" content="Simulated technology operations tool for Leggee Elementary: work orders, rooms, staff and equipment inventory. Portfolio demonstration.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%23000'/%3E%3Ctext x='16' y='23' font-family='Arial,sans-serif' font-weight='700' font-size='19' text-anchor='middle' fill='%23FFC425'%3EL%3C/text%3E%3C/svg%3E">
+<title>Leggee Tech Ops</title>
+<style>
+/* Shape rule: sheets and tables are square; every control, chip and room plate is 4px; circles only for connection-path points and setup step numbers. */
+:root{
+  --black:#000000; --ink:#1F1F1D; --muted:#5C5C57; --faint:#6E6E68;
+  --yellow:#FFC425; --yellow-deep:#D9A100; --yellow-soft:#FFF4CC;
+  --field:#F2F2EF; --paper:#FFFFFF; --rule:#D9D9D4; --rule-strong:#BDBDB7; --hover:#F7F7F4;
+  --red:#B3261E; --red-soft:#FCE8E6; --amber:#8A5300; --amber-soft:#FCEFD9;
+  --blue:#1F4E96; --blue-soft:#E4ECF8; --green:#1F6B35; --green-soft:#E3F2E6;
+  --gray-soft:#ECECE8;
+  --display:"Bahnschrift","DIN Alternate","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  --sans:"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,"SF Mono",Menlo,monospace;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100%;background:var(--field);color:var(--ink);font:15px/1.45 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--rule-strong);text-underline-offset:2px}
+a:hover{text-decoration-color:var(--ink)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--yellow-deep);outline-offset:2px}
+.mono{font-family:var(--mono);font-size:.9em}
+.muted{color:var(--muted)}
+h1,h2,h3{font-family:var(--display);font-weight:600;letter-spacing:0;margin:0}
+
+/* ---------- Frame ---------- */
+.app{display:grid;grid-template-columns:212px minmax(0,1fr);min-height:100vh;min-height:100dvh}
+.side{background:var(--black);color:#fff;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;height:100dvh;padding:0 0 14px}
+.side::before{content:"";display:block;flex:none;height:10px;margin-bottom:16px;background:repeating-linear-gradient(-45deg,var(--yellow) 0 9px,#000 9px 18px)}
+.brand{padding:0 18px 16px}
+.brand a{text-decoration:none;color:#fff;display:block}
+.brand b{display:block;font-family:var(--display);font-size:19px;font-weight:700;line-height:1.1}
+.brand b span{color:var(--yellow)}
+.brand small{display:block;color:#A8A8A2;font-size:13px;margin-top:3px}
+.nav{list-style:none;margin:0;padding:0}
+.nav a{display:block;padding:9px 18px;color:#EDEDE8;text-decoration:none;font-size:15px;border-left:4px solid transparent}
+.nav a:hover{background:#1C1C1A;color:#fff}
+.nav a[aria-current="page"]{background:var(--yellow);color:#000;font-weight:700;border-left-color:#000}
+.nav .sep{height:1px;background:#2E2E2B;margin:8px 18px}
+.side-foot{margin-top:auto;padding:12px 18px 0;border-top:1px solid #2E2E2B;font-size:13px;color:#A8A8A2;display:grid;gap:8px}
+.reset{background:transparent;border:1px solid #3A3A37;color:#EDEDE8;border-radius:4px;padding:6px 10px;cursor:pointer;text-align:left;font-size:13.5px}
+.reset:hover{border-color:#77776F}
+.reset.arm{background:var(--red);border-color:var(--red);color:#fff}
+.sim{font-size:12px;color:#A8A8A2;line-height:1.35}
+
+main{padding:22px 32px 48px;min-width:0;max-width:1240px}
+
+/* ---------- Page header ---------- */
+.crumbs{font-size:14px;color:var(--muted);margin-bottom:6px}
+.crumbs a{color:var(--muted)}
+.ph{display:flex;flex-wrap:wrap;gap:12px 20px;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+.ph h1{font-size:28px;line-height:1.15}
+.ph>div:first-child{flex:1 1 420px;min-width:0}
+.ph .sub{color:var(--muted);margin-top:4px;font-size:15px;max-width:78ch}
+.ph .ctx{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin-top:8px;font-size:15px}
+.ctx.sepd>*+*{border-left:1px solid var(--rule-strong);padding-left:14px}
+.acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end}
+.acts .err{flex-basis:100%;text-align:right}
+
+/* ---------- Buttons ---------- */
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rule-strong);background:var(--paper);color:var(--ink);border-radius:4px;padding:7px 14px;cursor:pointer;font-size:14.5px;font-weight:600;text-decoration:none;line-height:1.3;min-height:36px}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--yellow);border:2px solid #000;color:#000;box-shadow:3px 3px 0 #000;margin:0 3px 3px 0}
+.btn.primary:hover{background:#FFD24F}
+.btn.primary:active{transform:translate(3px,3px);box-shadow:0 0 0 #000}
+.btn.quiet{border-color:transparent;background:transparent;text-decoration:underline;text-decoration-color:var(--rule-strong);text-underline-offset:3px;padding-left:6px;padding-right:6px}
+.btn.quiet:hover{text-decoration-color:var(--ink)}
+.btn.danger{color:var(--red)}
+.btn.danger:hover{border-color:var(--red)}
+.btn.small{min-height:30px;padding:4px 10px;font-size:13.5px}
+
+/* ---------- Messages ---------- */
+.flash{border:1px solid var(--rule);border-left:5px solid var(--green);background:var(--paper);padding:8px 12px;margin-bottom:14px;font-size:14.5px}
+.flash.warn{border-left-color:var(--amber)}
+.err{color:var(--red);font-size:14px;font-weight:600}
+.err:empty{display:none}
+.empty{color:var(--muted);padding:10px 0;font-size:14.5px}
+
+/* ---------- Chips and plates ---------- */
+.plate{display:inline-block;background:#000;color:var(--yellow);font-family:var(--display);font-weight:700;font-size:15px;line-height:1;padding:5px 8px;border-radius:4px;min-width:48px;text-align:center;white-space:nowrap;max-width:132px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+a.plate{text-decoration:none}
+.plate.big{font-size:28px;padding:8px 12px;min-width:76px;max-width:none}
+.chip{display:inline-block;border-radius:4px;padding:2px 7px;font-size:13px;font-weight:700;white-space:nowrap;line-height:1.35}
+.p-High{background:var(--red-soft);color:var(--red)}
+.p-Medium{background:var(--amber-soft);color:var(--amber)}
+.p-Low{background:var(--gray-soft);color:var(--muted)}
+.s-New{background:var(--yellow-soft);color:#5A4300}
+.s-InProgress{background:var(--green-soft);color:var(--green)}
+.s-Waiting{background:var(--blue-soft);color:var(--blue)}
+.s-Resolved{background:var(--gray-soft);color:var(--ink)}
+.s-Closed{background:transparent;color:var(--muted);border:1px solid var(--rule-strong)}
+.a-Deployed{background:var(--green-soft);color:var(--green)}
+.a-InStock{background:var(--yellow-soft);color:#5A4300}
+.a-Received,.a-Configuring{background:var(--amber-soft);color:var(--amber)}
+.a-InRepair{background:var(--blue-soft);color:var(--blue)}
+.a-Retired{background:transparent;color:var(--muted);border:1px solid var(--rule-strong)}
+
+/* ---------- Toolbar ---------- */
+.toolbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-bottom:14px}
+.seg{display:inline-flex;border:1px solid var(--rule-strong);border-radius:4px;overflow:hidden;background:var(--paper)}
+.seg button{border:0;background:transparent;padding:6px 12px;cursor:pointer;font-size:14px;color:var(--muted);min-height:34px}
+.seg button+button{border-left:1px solid var(--rule-strong)}
+.seg button[aria-pressed="true"]{background:#000;color:var(--yellow);font-weight:700}
+.field{border:1px solid var(--rule-strong);background:var(--paper);border-radius:4px;padding:7px 10px;font-size:14.5px;min-height:36px}
+.toolbar .grow{flex:1;min-width:220px}
+
+/* ---------- Sheets and sections ---------- */
+.sheet{background:var(--paper);border:1px solid var(--rule);margin-bottom:16px}
+.sec{padding:14px 18px}
+.sec+.sec{border-top:1px solid var(--rule)}
+.sec>h2{font-size:18px;margin-bottom:8px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.sec>h2 .n{font-family:var(--sans);font-size:14px;font-weight:400;color:var(--muted)}
+.sec>h2 .hint{font-family:var(--sans);font-size:13.5px;font-weight:400;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:20px;align-items:start}
+.grouphead{font-family:var(--display);font-size:17px;font-weight:600;margin:20px 0 6px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.grouphead:first-child{margin-top:0}
+.grouphead .n{font-family:var(--sans);font-size:14px;font-weight:400;color:var(--muted)}
+.grouphead .stops{font-family:var(--sans);font-size:13.5px;font-weight:400;color:var(--muted)}
+
+/* ---------- Work list (queue rows) ---------- */
+.wl{background:var(--paper);border:1px solid var(--rule)}
+.wrow{display:grid;grid-template-columns:78px 96px minmax(0,1.7fr) minmax(0,.9fr) 160px;gap:12px;align-items:center;padding:9px 14px;border-top:1px solid var(--rule);text-decoration:none;color:var(--ink)}
+.wrow:first-child{border-top:0}
+.wrow:hover{background:var(--hover)}
+.wrow.r-High{box-shadow:inset 5px 0 0 var(--red)}
+.wrow .plate{max-width:92px}
+.wrow .what b{display:block;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wrow .what span{display:block;color:var(--muted);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wrow .eq{font-size:14px;min-width:0}
+.wrow .eq span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wrow .eq .mono{color:var(--muted)}
+.wrow .state{display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:13px;color:var(--muted);text-align:right}
+
+.wl.inset{margin:0 -18px;border-left:0;border-right:0;border-bottom:0}
+.wl.inset .wrow{grid-template-columns:72px 90px minmax(0,1fr) 150px}
+.wl.inset .eq{display:none}
+.wl.noplate .wrow{grid-template-columns:72px minmax(0,1fr) 150px}
+.wl.noplate .pl{display:none}
+/* ---------- Tables ---------- */
+.tblwrap{overflow-x:auto;background:var(--paper);border:1px solid var(--rule)}
+.sec .tblwrap{border:0;margin:0 -18px}
+table.tbl{width:100%;border-collapse:collapse;font-size:14.5px}
+.tbl th{text-align:left;font-weight:600;color:var(--muted);font-size:13.5px;padding:8px 12px;border-bottom:1px solid var(--rule-strong);white-space:nowrap;background:var(--paper)}
+.tbl td{padding:7px 12px;border-bottom:1px solid var(--rule);vertical-align:middle}
+.sec .tbl th:first-child,.sec .tbl td:first-child{padding-left:18px}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tbody tr:hover td{background:var(--hover)}
+.tbl td.num,.tbl th.num{text-align:right;font-variant-numeric:tabular-nums}
+.tbl a{font-weight:600}
+.tbl a.mono,.tbl td.mono{white-space:nowrap}
+.tbl .grp td{background:var(--field);font-weight:600;font-size:13.5px;color:var(--muted);padding-top:6px;padding-bottom:6px}
+.tbl tbody tr.grp:hover td{background:var(--field)}
+
+/* ---------- Key facts ---------- */
+.facts{display:flex;flex-wrap:wrap;gap:10px 28px;margin:2px 0 16px;padding:12px 18px;background:var(--paper);border:1px solid var(--rule)}
+.facts div{min-width:120px}
+.facts dt,.kv dt{color:var(--muted);font-size:13.5px}
+.facts dd{margin:2px 0 0;font-weight:600}
+.facts dl{margin:0}
+dl.kv{display:grid;grid-template-columns:118px minmax(0,1fr);gap:5px 12px;margin:0;font-size:14.5px}
+dl.kv dd{margin:0;overflow-wrap:anywhere}
+.lines{margin:0;padding:0;list-style:none}
+.lines li{padding:3px 0}
+
+/* ---------- Work order ---------- */
+.progress{display:flex;list-style:none;margin:0 0 16px;padding:0;gap:0;font-size:14px;border:1px solid var(--rule);background:var(--paper)}
+.progress li{flex:1;padding:7px 12px;color:var(--faint);border-bottom:3px solid transparent}
+.progress li+li{border-left:1px solid var(--rule)}
+.progress li.done{color:var(--ink)}
+.progress li.done::before{content:"✓ ";color:var(--green);font-weight:700}
+.progress li.now{color:#000;font-weight:700;border-bottom-color:var(--yellow);background:var(--yellow-soft)}
+.progress li.skip{color:var(--faint)}
+blockquote.report{margin:0 0 6px;padding:2px 0 2px 12px;border-left:4px solid var(--yellow);font-size:15.5px;white-space:pre-wrap}
+.by{color:var(--muted);font-size:14px;margin:0 0 12px}
+label.lbl{display:block;font-weight:600;font-size:14px;margin:0 0 4px}
+label.lbl .hint{font-weight:400;color:var(--muted)}
+textarea{width:100%;min-height:60px;border:1px solid var(--rule-strong);border-radius:4px;padding:8px 10px;background:var(--paper);resize:vertical;font-size:15px;line-height:1.4}
+textarea[readonly],input[readonly]{background:var(--field)}
+.checkhead{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:12px;font-size:13.5px;font-weight:600;color:var(--muted);padding:0 0 4px;border-bottom:1px solid var(--rule-strong)}
+.checkhead span:first-child{padding-left:28px}
+.checks{list-style:none;margin:0;padding:0}
+.check{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:12px;align-items:center;padding:7px 0;border-top:1px solid var(--rule)}
+.check:first-child{border-top:0}
+.check label{display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:15px}
+.check input[type=checkbox]{flex:none;margin:2px 0 0;width:18px;height:18px;accent-color:#000}
+.check.done label span{color:var(--muted)}
+.check input.res{border:1px solid var(--rule-strong);border-radius:4px;padding:6px 9px;background:var(--paper);font-size:14.5px;width:100%;min-height:34px}
+.check.done input.res{border-color:var(--rule)}
+details.more{margin-top:8px}
+details.more>summary{cursor:pointer;font-weight:600;font-size:14.5px;padding:4px 0;list-style:none;display:inline-flex;gap:6px;align-items:center}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::before{content:"+";display:inline-block;width:16px;text-align:center;font-weight:700}
+details.more[open]>summary::before{content:"−"}
+.inline{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.inline .field{flex:1;min-width:200px}
+.closebox{display:flex;align-items:center;gap:8px;font-size:14.5px;font-weight:600}
+.closebox input{width:18px;height:18px;accent-color:#000}
+
+.timeline{list-style:none;margin:0;padding:0}
+.timeline li{display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px;padding:5px 0;border-top:1px solid var(--rule);font-size:14.5px}
+.timeline li:first-child{border-top:0}
+.timeline time{color:var(--muted);font-size:13.5px;font-variant-numeric:tabular-nums}
+.hist{list-style:none;margin:0;padding:0}
+.hist li{padding:6px 0;border-top:1px solid var(--rule);font-size:14px}
+.hist li:first-child{border-top:0}
+.hist time{display:block;color:var(--muted);font-size:13px}
+
+/* ---------- Connection path: the cable run ---------- */
+.path{list-style:none;margin:4px 0 0;padding:0;position:relative}
+.path::before{content:"";position:absolute;left:13px;top:18px;bottom:18px;width:4px;background:#000}
+.path li{position:relative;padding-left:38px;margin:0 0 2px}
+.path .node{position:absolute;left:5px;top:12px;width:20px;height:20px;border-radius:50%;background:var(--yellow);border:3px solid #000}
+.path button,.path .stat{display:block;width:100%;text-align:left;background:transparent;border:1px solid transparent;border-radius:4px;padding:6px 9px;font-size:14.5px}
+.path button{cursor:pointer}
+.path button:hover{border-color:var(--rule-strong);background:var(--hover)}
+.path .k{display:block;font-size:13.5px;color:var(--muted)}
+.path .v{display:block;font-family:var(--mono);font-size:14px;font-weight:600}
+.path li.found .node{background:var(--red);border-color:var(--red);box-shadow:0 0 0 4px var(--red-soft)}
+.path li.found button{border-color:var(--red);background:var(--red-soft)}
+.path .found-tag{margin-left:8px;color:var(--red);font-weight:700}
+.pathhint{color:var(--muted);font-size:13.5px;margin:0 0 6px}
+
+/* ---------- Forms ---------- */
+.form{display:grid;gap:12px}
+.form label{display:grid;gap:4px;font-size:14px;font-weight:600}
+.form label .hint{font-weight:400;color:var(--muted)}
+.form input,.form select,.form textarea{border:1px solid var(--rule-strong);background:var(--paper);border-radius:4px;padding:7px 10px;font-size:15px;font-weight:400;min-height:36px;width:100%}
+.form .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end}
+.form .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end}
+.form .btns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;align-items:center}
+.form fieldset{border:0;padding:0;margin:0;display:grid;gap:12px}
+.form legend{font-family:var(--display);font-weight:600;font-size:17px;padding:0;margin-bottom:2px}
+.form .tick{display:flex;gap:8px;align-items:center;font-weight:400;font-size:14.5px}
+.form .tick input{width:18px;height:18px;min-height:0;accent-color:#000}
+.note{color:var(--muted);font-size:13.5px;margin:6px 0 0}
+
+/* ---------- Equipment setup steps ---------- */
+.setup{list-style:none;margin:6px 0 0;padding:0;counter-reset:s}
+.setup>li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;padding:9px 0;border-top:1px solid var(--rule);color:var(--faint)}
+.setup>li:first-child{border-top:0}
+.setup .num{width:26px;height:26px;border-radius:50%;border:2px solid var(--rule-strong);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13.5px;font-family:var(--display)}
+.setup>li.done{color:var(--ink)}
+.setup>li.done .num{background:#000;border-color:#000;color:var(--yellow)}
+.setup>li.now{color:var(--ink)}
+.setup>li.now .num{background:var(--yellow);border-color:#000;color:#000}
+.setup .when{color:var(--muted);font-size:13.5px}
+.setup .form{margin-top:10px}
+.seq{display:flex;flex-wrap:wrap;gap:6px 0;list-style:none;margin:0 0 16px;padding:0;font-size:14px}
+.seq li{padding:4px 10px 4px 0;color:var(--muted)}
+.seq li b{color:#000;background:var(--yellow);border-radius:50%;display:inline-flex;width:20px;height:20px;align-items:center;justify-content:center;font-size:12px;margin-right:5px;font-family:var(--display)}
+
+/* ---------- People list ---------- */
+.people{list-style:none;margin:0;padding:0}
+.people li{padding:6px 0;border-top:1px solid var(--rule);font-size:14.5px}
+.people li:first-child{border-top:0}
+.people a{font-weight:600}
+.people span{display:block;color:var(--muted);font-size:13.5px}
+
+/* ---------- Responsive ---------- */
+@media (max-width:1180px){
+  .grid2{grid-template-columns:minmax(0,1fr) 320px}
+  .wrow{grid-template-columns:72px 90px minmax(0,1.7fr) minmax(0,.8fr) 146px}
+}
+@media (max-width:1020px){
+  .grid2{grid-template-columns:1fr}
+  .wrow{grid-template-columns:72px 90px minmax(0,1fr) 140px}
+  .wrow .eq{display:none}
+  .wrow .what b{white-space:normal}
+}
+@media (max-width:820px){
+  .app{grid-template-columns:1fr}
+  .side{position:static;height:auto;padding:0 0 10px}
+  .brand{padding:0 14px 8px}
+  .nav{display:flex;overflow-x:auto}
+  .nav a{border-left:0;border-bottom:4px solid transparent;padding:8px 12px;white-space:nowrap}
+  .nav .sep{display:none}
+  .side-foot{flex-direction:row;display:flex;flex-wrap:wrap;align-items:center;padding:8px 14px 0}
+  main{padding:16px}
+  .wrow{grid-template-columns:64px minmax(0,1fr);row-gap:4px}
+  .wrow .pri{grid-row:1}
+  .wrow .state{grid-column:2;align-items:flex-start;flex-direction:row;gap:8px}
+  .form .row,.form .row3{grid-template-columns:1fr}
+  .check{grid-template-columns:1fr}
+  .checkhead{display:none}
+  .check input.res::placeholder{color:var(--muted)}
+  .timeline li{grid-template-columns:1fr}
+}
+
+
+/* ---------- Scoreboard strip (queue) ---------- */
+.board{display:flex;background:#000;color:#fff;margin:0 0 16px;border-radius:4px;overflow:hidden}
+.board>div{flex:1;display:flex;align-items:baseline;gap:10px;padding:10px 18px}
+.board>div+div{border-left:1px solid #2E2E2B}
+.board b{font-family:var(--display);font-size:32px;line-height:1;font-weight:700;color:var(--yellow);font-variant-numeric:tabular-nums}
+.board span{font-size:14px;color:#D6D6D0}
+.board .hot b{color:#FF7A6E}
+
+/* ---------- Asset tag label (equipment pages) ---------- */
+.tagsticker{display:inline-grid;grid-template-columns:auto auto;align-items:center;gap:2px 14px;background:#fff;border:2px solid #000;border-radius:4px;padding:6px 12px 6px 10px}
+.tagsticker small{grid-column:1 / -1;font-size:12px;font-weight:600;color:var(--muted)}
+.tagsticker svg{display:block;height:32px;width:auto}
+.tagsticker h1.tagtitle{font-size:24px}
+@media (max-width:820px){.board{flex-wrap:wrap}.board>div{flex:1 1 45%}.board>div:nth-child(3){border-left:0}}
+
+/* ---------- Named spacing helpers (replaces inline styles) ---------- */
+.devname{margin:0 0 8px}
+.flash.tight{margin:0 0 8px}
+.flash.flush,.flush,.note.flush{margin:0}
+.note.gap{margin-top:10px}
+.note.count{margin:0 0 10px}
+.roomhead{display:flex;gap:14px;align-items:center}
+details.more.filters{margin:-6px 0 12px}
+.toolbar.inner{margin:6px 0 0}
+.form.nested{margin-top:8px}
+.sheet.narrow{max-width:860px}
+h1.tagtitle{font-family:var(--mono);font-size:26px;font-weight:700}
+
+/* ---------- Feedback, motion, type polish ---------- */
+.btn,.btn.primary,.nav a,.wrow,.seg button,.path button,.reset,.tbl tbody tr td{transition:background-color .12s ease,border-color .12s ease,color .12s ease,box-shadow .08s ease,transform .08s ease}
+.btn:active,.seg button:active,.reset:active,.path button:active{transform:translateY(1px)}
+h1,.wrow .what b{text-wrap:balance}
+blockquote.report,.ph .sub,.note,.empty,.hist li,.timeline li span{text-wrap:pretty}
+.wrow .state,.hist time,.timeline time,.sec>h2 .n,.grouphead .n,.grouphead .stops,.ph .sub,.facts dd{font-variant-numeric:tabular-nums}
+.skip{position:absolute;left:8px;top:-60px;z-index:10;background:var(--yellow);color:#000;border:2px solid #000;border-radius:4px;padding:8px 14px;font-weight:700;cursor:pointer}
+.skip:focus{top:8px}
+main:focus{outline:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}.btn:active,.btn.primary:active,.seg button:active,.reset:active,.path button:active{transform:none}.btn.primary:active{box-shadow:3px 3px 0 #000}}
+</style>
+</head>
+<body>
+<button class="skip" id="skip" type="button">Skip to content</button>
+<div class="app">
+  <aside class="side" aria-label="Main navigation">
+    <div class="brand"><a href="#/queue"><b><span>Leggee</span> Tech Ops</b><small>Leggee Elementary</small></a></div>
+    <nav aria-label="Main"><ul class="nav" id="nav"></ul></nav>
+    <div class="side-foot">
+      <div>Signed in as E. Dawkins, Mobile Technician</div>
+      <button class="reset" id="reset" type="button">Reset demo data</button>
+      <div class="sim">SIMULATED ENVIRONMENT • Portfolio Demonstration</div>
+    </div>
+  </aside>
+  <main id="main" tabindex="-1"></main>
+</div>
+<script>
+"use strict";
+/* ============ CONFIG ============ */
+const KEY = "leggee-techops:v1";
+const SCHEMA = 2;
+const PRI = ["High","Medium","Low"];
+const STATUSES = ["New","In Progress","Waiting","Resolved","Closed"];
+const ASSET_STATUSES = ["Received","In Stock","Configuring","Deployed","In Repair","Retired"];
+const WAIT_REASONS = ["Parts on order","Vendor repair","Staff availability","Scheduled after hours"];
+const RETIRE_REASONS = ["End of life","Failed beyond repair","Lost"];
+const PARTS = ["Power supply","Motherboard","Expansion card","Processor (CPU)","Cooling fan","RAM","Network adapter (NIC)","SSD","Disc drive","Battery","Keyboard","Screen (LCD)"];
+const VLANS = ["10 (Management)","20 (Staff wired)","30 (Student wireless)","40 (Printers/AV)"];
+const IP_MODES = ["DHCP","DHCP reservation","Static","Wi-Fi DHCP"];
+const STEP_LABEL = {verify:"Check the serial and put on the tag",configure:"Install the operating system and software",network:"Set up the network connection",assign:"Assign it to a room and person",install:"Install it and check it with the user"};
+const RECEIVE_TYPES = {
+  "Laptop":{cls:"computer",mfr:"Dell",model:"Dell Latitude 5450",specs:"Core Ultra 5 125U, 16 GB RAM, 512 GB SSD",profile:"Staff Laptop",os:"Windows 11 Pro 24H2"},
+  "Desktop":{cls:"computer",mfr:"Dell",model:"Dell OptiPlex 7010 Micro",specs:"Core i5-13500T, 16 GB RAM, 512 GB SSD",profile:"Office PC",os:"Windows 11 Pro 24H2"},
+  "Chromebook":{cls:"computer",mfr:"Dell",model:"Dell Chromebook 3110",specs:"Celeron N4500, 4 GB RAM, 32 GB eMMC",profile:"Chromebook",os:"ChromeOS (managed)"},
+  "Monitor":{cls:"display",mfr:"Dell",model:"Dell P2422H monitor"},
+  "USB-C hub":{cls:"peripheral",mfr:"Dell",model:"Dell DA310 USB-C hub"},
+  "Document camera":{cls:"display",mfr:"IPEVO",model:"IPEVO V4K document camera"},
+  "Webcam":{cls:"peripheral",mfr:"Logitech",model:"Logitech C920 webcam"},
+  "Interactive display":{cls:"display",mfr:"Promethean",model:"Promethean ActivPanel 9, 75 in"},
+  "Network printer":{cls:"printer",mfr:"HP",model:"HP LaserJet Pro 4001dn"}
+};
+const INSTALL_CHECKS = {
+  "Laptop":["User signs in","Monitor works through the hub","Wired network connects through the hub","Test print succeeds"],
+  "Desktop":["User signs in","Display works","Network connects","Test print succeeds"],
+  "Chromebook":["Enrolled in management and signs in","Connects to student Wi-Fi","Labeled and placed in its cart slot"],
+  "printer":["Test page prints","Print queue added and tested from a client"],
+  "default":["Connected and powered on","Works with the user's device"]
+};
+const WINGS = [["of","Office and admin"],["k2","K-2 wing"],["35","3-5 wing"],["nh","North hall"],["sp","Specials and library"],["su","Support services"]];
+const LOC_TYPES = {classroom:"Classroom",specials:"Specials room",gym:"Gym",library:"Library",office:"Office",health:"Health office",support:"Support services",shared:"Shared space",network:"Network closet",storage:"Storage",cart:"Chromebook cart"};
+const CLASSES = {computer:"Computers",display:"Displays and AV",peripheral:"Peripherals",printer:"Printers",network:"Network equipment"};
+const PROFILES = {
+  "Staff Laptop":["Microsoft 365 Apps","Google Chrome","Adobe Acrobat Reader","Interactive display software","Document camera software","Endpoint protection agent"],
+  "Office PC":["Microsoft 365 Apps","Google Chrome","Adobe Acrobat Reader","Endpoint protection agent"],
+  "Chromebook":["Google Workspace for Education","Testing kiosk app"]
+};
+const TEMPLATES = {
+  "Network":["Link light at the NIC or hub port and at the wall jack","Reseat the cable at both ends","Swap in a known-good patch cable","Test the jack with a known-good device","Check IP config (169.254.x.x means no DHCP lease)","Trace the jack to its switch port in the IDF","Verify access to internal resources"],
+  "Printer":["Check power and the printer's display for errors","Check paper, toner and jams","Compare the IP on the printer's config page with the recorded reservation","Print a test page from a client","Check the client print queue and driver"],
+  "Display/AV":["Confirm the correct input source","Check the cable is seated at both ends","Swap in a known-good cable","Check display settings (duplicate or extend)","Test with another device"],
+  "Peripheral":["Try a different USB port","Test on another computer","Check Device Manager and the driver","Swap in a known-good replacement"],
+  "Hardware":["Check power, POST and charging lights","Test with a known-good charger or hub","Run built-in hardware diagnostics","Check warranty status"],
+  "Software":["Reproduce the problem","Restart and retest","Update or reinstall the app","Test with a different user profile"],
+  "Deployment":["Confirm request details with staff","Pull equipment from Tech Storage","Configure and label","Deliver and verify with staff","Update the inventory record"]
+};
+
+/* ============ SEED: ROOMS (fictional; edit freely) ============ */
+// [id, number, name, type, wing, parent]
+const SEED_LOCS = [
+  ["101","101","Main Office","office","of"],["102","102","Principal's office","office","of"],["103","103","Assistant Principal's office","office","of"],
+  ["104","104","Health Office","health","of"],["105","105","Staff Workroom","shared","of"],["mdf","106","MDF (main network closet)","network","of"],
+  ["107","107","Tech Storage and Receiving","storage","of"],
+  ...[1,2,3,4,5,6].map(n=>[`11${n}`,`11${n}`,"Kindergarten classroom","classroom","k2"]),
+  ...[1,2,3,4,5,6,7].map(n=>[`12${n}`,`12${n}`,"1st grade classroom","classroom","k2"]),
+  ...[1,2,3].map(n=>[`13${n}`,`13${n}`,"2nd grade classroom","classroom","k2"]),
+  ["idfa","","IDF-A","network","k2"],
+  ...[1,2,3,4].map(n=>[`14${n}`,`14${n}`,"3rd grade classroom","classroom","35"]),
+  ...[1,2,3,4].map(n=>[`15${n}`,`15${n}`,"4th grade classroom","classroom","35"]),
+  ...[1,2,3,4,5,6,7,8].map(n=>[`16${n}`,`16${n}`,"5th grade classroom","classroom","35"]),
+  ["idfb","","IDF-B","network","35"],
+  ...[1,2,3,4,5,6].map(n=>[`17${n}`,`17${n}`,"Classroom (grade not listed)","classroom","nh"]),
+  ["177","177","Dual Language classroom","classroom","nh"],["178","178","Dual Language classroom","classroom","nh"],["179","179","ESL room","classroom","nh"],
+  ...[1,2,3,4,5,6].map(n=>[`18${n}`,`18${n}`,"Special Services resource room","classroom","nh"]),
+  ["mus","","Music Room","specials","sp"],["band","","Band and Orchestra Room","specials","sp"],["art","","Art Room","specials","sp"],
+  ["gym","","Gym","gym","sp"],["exp","","Explore Room","specials","sp"],["lib","","Library/IMC","library","sp"],
+  ["190","190","Speech room","support","su"],["191","191","Speech room","support","su"],["192","192","OT/PT therapy room","support","su"],
+  ["193","193","Student Services offices","support","su"],["194","194","MTSS intervention room","support","su"],["195","195","Coaches office","support","su"],
+  ["cart3","","Chromebook Cart 3","cart","35","141"],["cart4","","Chromebook Cart 4","cart","35","151"],["cart5","","Chromebook Cart 5","cart","35","161"],["cartlib","","Library Chromebook cart","cart","sp","lib"]
+];
+
+/* ============ SEED: STAFF (names and listed titles from the public directory; placements are fictional) ============ */
+// [name, role, location id or "", also serves]
+const SEED_STAFF = [
+  ["Kylie Davey","Kindergarten Teacher","111"],["Sarah DuBose","Kindergarten Teacher","112"],["Kelly Kolozsy","Kindergarten Teacher","113"],
+  ["Jennifer Levita","Kindergarten Teacher","114"],["Jennifer Pate","Kindergarten Teacher","115"],["Heather Subleski","Kindergarten Teacher","116"],
+  ["Amanda Brinkman","1st Grade Teacher","121"],["Jennifer Hora","1st Grade Teacher","122"],["Catherine Johnson","1st Grade Teacher","123"],
+  ["Jessica Kehler","1st Grade Teacher","124"],["Lauren Salerno","1st Grade Teacher","125"],["Tiffany Van Yzendoorn","1st Grade Teacher","126"],["Jessica Weglarz","1st Grade Teacher","127"],
+  ["Nicole Hollingsworth","2nd Grade Teacher","131"],["Lisa Kunde","2nd Grade Teacher","132","Summer School"],["Ashley Zagroba","Grade 2 Teacher","133"],
+  ["Amy Goldberg","3rd Grade Teacher","141"],["Jeri Lynn Graunke","3rd Grade Teacher","142"],["Michelle Leonard","3rd Grade Teacher","143"],["Tamara Van Hiel","3rd Grade Teacher","144"],
+  ["Jolene Chick","4th Grade Teacher","151"],["Carl Isonhart","4th Grade Teacher","152"],["Michelle King","4th Grade @Leggee Teacher","153"],["Trisha Marchand","4th Grade Teacher","154"],
+  ["Christina Bessey","5th Grade Teacher","161"],["Jennifer Bowie","5th Grade Teacher","162"],["Julie McLaughlin","5th Grade Teacher","163"],["Justin Oliver","Grade 5 Teacher","164"],
+  ["Kirsten Scott","5th grade Teacher","165"],["Kelly Sul","5th Grade Teacher","166"],["Dana Turk","5th Grade Teacher","167"],["Nicole Winston","5th Grade Teacher","168"],
+  ["Anne Collins","Teacher","171"],["Kristin Domka","Teacher","172"],["Herta Eilers","Teacher","173"],["Heather Fitte","Teacher","174"],["Megan Schaffter","Teacher","175"],["Kathleen Vaught","Teacher","176"],
+  ["Jessica Echeverria","Dual Language Teacher","177"],["Cassady Waldschmidt","Dual Language Teacher","178"],["Sarah McGregory","ESL Teacher","179"],
+  ["Charity Atchison","Special Services Teacher","181"],["Travis Awrey","Special Services Teacher","181"],["Lesley Backofen","Special Services Teacher","182"],["Brianna Baird","Special Services Teacher","182"],
+  ["Nicole Crome","Special Services Teacher","183"],["Caryn Kambitsis","Special Services Teacher","183"],["Kathleen Lewandowski","Special Services Teacher","184"],["Allison Olsen","Special Services Teacher","184"],
+  ["Jean O'Reilly","Special Services Teacher","185"],["Samantha Riesen","Special Services Teacher","185"],["Laura Trch","Special Services Teacher","186"],["Ashley Wadman","Special Services Teacher","186"],["Anna Walsh","Special Services Teacher","186"],
+  ["Sydney Fleck","Speech Language Pathologist","190"],["Natasha Gigliotti","Speech Language Pathologist","190","Early Childhood Center, District Office"],["Jessica Horndasch","Special Services Speech Language Pathologist","190"],
+  ["Saundra Keech","Special Services Speech/Language Pathologist","191"],["Molly Panier","Special Services Speech Language Pathologist","191"],["Carly Smith","Special Services Speech Language Pathologist","191"],
+  ["Marlene Vogt","Special Services Occupational Therapist","192"],["Loida Kozbiel","Special Education Physical Therapist","192","Huntley High School, District Office"],
+  ["Michele Allen","Special Services Psychologist","193"],["Kendall Howze","Special Services Psychologist Intern","193","Huntley High School"],["Cara Contreras","Special Services Social Worker","193"],
+  ["Jessica Escontrias","Special Services Social Worker","193"],["Alyssa Lamantia","Special Services Social Worker","193"],["Ebony Tolbert","Social Worker","193","Huntley High School"],
+  ["Michele Busky","MTSS Facilitator","194","District Office"],["Jaime DeBlieck","MTSS Interventionist","194"],["Sharon Flight","MTSS Interventionist","194"],["Kimberlee Reed","RTI MTSS Interventionist","194"],
+  ["Kristi Wise","Specialized Teachers Instructional Coach","195"],["Kieran Zastrow","@ Leggee Instructional Coach","195"],["Abbe Colantonio","Coordinator","195"],
+  ["Michelle Weirich","Principal","102"],["Stephanie Mitchell","Assistant Principal","103"],["Juliann Ossler","Nurse","104"],["Emilie Peters","Health Services Nurse","104"],
+  ["Mary Bell","Music Teacher","mus"],["Amanda Pinzon","Music Teacher","mus"],["Kimberly Cramer","Music Teacher","mus","Chesak Elementary, Mackeben Elementary"],["Frank Hryniewicz","Music Teacher","mus","Conley Elementary, Mackeben Elementary"],
+  ["Christian Bierma","Band/Orchestra Teacher","band","Martin Elementary"],["Cara Searle","Orchestra Teacher","band","Conley Elementary"],
+  ["Cindy Rick","Art Teacher","art"],["Krysta Ricker","Art Teacher","art","Chesak Elementary, Martin Elementary"],
+  ["Lauren Brezinski","Physical Education (PE) Teacher","gym"],["Becky Nickol","Physical Education (PE) Teacher","gym"],["Natalie Rysavy","Physical Education (PE) Teacher","gym"],["Nick Schmidt","PE Teacher","gym"],
+  ["Michael Ginczycki","Special Education Adaptive PE Teacher","gym","Huntley High School, Martin Elementary"],
+  ["Robin Doubek","Explore Teacher","exp","Chesak Elementary, Martin Elementary"],["Gina Sample","Explore Teacher","exp"],
+  ["Gabriella Hagen","Teacher Candidate",""],["Liona Redzepi","Teacher Candidate",""],["Lauren Wilson","Teacher Candidate",""],["Graciela Mena","Substitute Teacher","","Early Childhood Center, District Office"]
+];
+function groupOf(role){
+  const r = role.toLowerCase();
+  if (/candidate|substitute/.test(r)) return "Temporary";
+  if (/principal/.test(r)) return "Administration";
+  if (/nurse/.test(r)) return "Health services";
+  if (/psycholog|social worker|speech|occupational|therapist/.test(r)) return "Related services";
+  if (/mtss|coach|coordinator/.test(r)) return "Instructional support";
+  if (/special services teacher/.test(r)) return "Special Services";
+  if (/music|band|orchestra|art teacher|physical education|pe teacher|explore/.test(r)) return "Specials";
+  return "Classroom teacher";
+}
+const sid = name => name.split(" ").pop().toLowerCase().replace(/[^a-z]/g,"");
+
+/* ============ SEED: hand-built assets for the demo story ============ */
+const PRESET_ASSETS = [
+  {id:"LEG-24161",cls:"computer",type:"Laptop",mfr:"Dell",model:"Dell Latitude 5440",serial:"7HQK2X3",status:"Deployed",loc:"161",staff:"bessey",
+   specs:"Core i5-1345U, 16 GB RAM, 256 GB SSD",os:"Windows 11 Pro 24H2",profile:"Staff Laptop",purchased:"Jul 2024",warranty:"Aug 31, 2027",
+   net:{host:"LEG-LT24161",ip:"10.58.21.61",mode:"DHCP",mac:"F8:B4:6A:21:61:0C",vlan:"20 (Staff wired)",jack:"161-A",patch:"PP2-14",sw:"LEG-20002",port:"Gi1/0/14"}},
+  {id:"LEG-24318",cls:"peripheral",type:"USB-C hub",mfr:"Dell",model:"Dell DA310 USB-C hub",serial:"CN0K4M2D31",status:"Deployed",loc:"161",staff:"bessey",conn:"LEG-24161",purchased:"Jul 2024"},
+  {id:"LEG-23561",cls:"display",type:"Monitor",mfr:"Dell",model:"Dell P2422H monitor",serial:"CN0D9F2H61",status:"Deployed",loc:"161",staff:"bessey",conn:"LEG-24318",purchased:"Jul 2024"},
+  {id:"LEG-20001",cls:"network",type:"Switch",mfr:"Cisco",model:"Cisco Catalyst 9300-48P",serial:"FOC2433X1QA",status:"Deployed",loc:"mdf",net:{host:"MDF-CORE01",ip:"10.58.10.2",mode:"Static",vlan:"10 (Management)"},purchased:"Jun 2022"},
+  {id:"LEG-20002",cls:"network",type:"Switch",mfr:"Cisco",model:"Cisco Catalyst 9200-48P",serial:"JAE24510B2K",status:"Deployed",loc:"idfb",net:{host:"IDF-B-SW02",ip:"10.58.10.12",mode:"Static",vlan:"10 (Management)"},purchased:"Jun 2022"},
+  {id:"LEG-20003",cls:"network",type:"Switch",mfr:"Cisco",model:"Cisco Catalyst 9200-48P",serial:"JAE24510C7M",status:"Deployed",loc:"idfa",net:{host:"IDF-A-SW01",ip:"10.58.10.11",mode:"Static",vlan:"10 (Management)"},purchased:"Jun 2022"},
+  {id:"LEG-21407",cls:"printer",type:"Network printer",mfr:"HP",model:"HP LaserJet Pro 4001dn",serial:"PHBQK41207",status:"Deployed",loc:"lib",purchased:"Jan 2024",warranty:"Jan 15, 2027",
+   net:{host:"LEG-IMC-PRN01",ip:"10.58.40.21",mode:"DHCP reservation",mac:"3C:52:82:4E:14:07",vlan:"40 (Printers/AV)",jack:"LIB-C",patch:"PP2-31",sw:"LEG-20001",port:"Gi1/0/31"}},
+  {id:"LEG-21390",cls:"printer",type:"Network printer (MFP)",mfr:"HP",model:"HP Color LaserJet MFP M480f",serial:"VNB3R21390",status:"Deployed",loc:"101",purchased:"Aug 2023",
+   net:{host:"LEG-OFC-MFP01",ip:"10.58.40.10",mode:"DHCP reservation",mac:"3C:52:82:4E:13:90",vlan:"40 (Printers/AV)",jack:"101-C",patch:"PP1-30",sw:"LEG-20001",port:"Gi1/0/30"}},
+  {id:"LEG-22031",cls:"display",type:"Projector",mfr:"Epson",model:"Epson PowerLite 1288",serial:"X8GF220311",status:"Deployed",loc:"gym",purchased:"Aug 2019",warranty:"Expired"},
+  {id:"LEG-23552",cls:"display",type:"Monitor",mfr:"Dell",model:"Dell P2422H monitor",serial:"CN0D9F2H52",status:"Deployed",loc:"152",staff:"isonhart",purchased:"Jul 2024"},
+  {id:"PER-0111",cls:"peripheral",type:"Keyboard and mouse",mfr:"Dell",model:"Dell KB216 keyboard, MS116 mouse",serial:"Not tracked",status:"Deployed",loc:"111",staff:"davey",untagged:true},
+  {id:"LEG-24102",cls:"computer",type:"Laptop",mfr:"Dell",model:"Dell Latitude 5440",serial:"2MXP2X3",status:"In Repair",loc:"102",staff:"weirich",specs:"Core i5-1345U, 16 GB RAM, 512 GB SSD",os:"Windows 11 Pro 24H2",profile:"Staff Laptop",purchased:"Jul 2024",warranty:"Aug 31, 2027",net:{host:"LEG-LT24102",mode:"DHCP",vlan:"20 (Staff wired)"}},
+  {id:"LEG-24990",cls:"computer",type:"Laptop",mfr:"Dell",model:"Dell Latitude 5440",serial:"6PZW2X3",status:"Deployed",loc:"102",staff:"weirich",specs:"Core i5-1345U, 16 GB RAM, 256 GB SSD",os:"Windows 11 Pro 24H2",profile:"Staff Laptop",purchased:"Jul 2024",warranty:"Aug 31, 2027",note:"Loaner",net:{host:"LEG-LT24990",mode:"DHCP",vlan:"20 (Staff wired)"}},
+  {id:"LEG-22870",cls:"display",type:"Document camera",mfr:"IPEVO",model:"IPEVO V4K document camera",serial:"V4K2287041",status:"Deployed",loc:"mus",staff:"bell",purchased:"Aug 2023"},
+  {id:"PER-0190",cls:"peripheral",type:"Headset",mfr:"Logitech",model:"Logitech H390 USB headset",serial:"Not tracked",status:"Deployed",loc:"190",staff:"fleck",untagged:true},
+  {id:"LEG-25317",cls:"computer",type:"Chromebook",mfr:"Dell",model:"Dell Chromebook 3110",serial:"9TLB3Y3",status:"In Repair",loc:"cart3",specs:"Celeron N4500, 4 GB RAM, 32 GB eMMC",os:"ChromeOS (managed)",profile:"Chromebook",purchased:"Jul 2023",warranty:"Jul 31, 2027",net:{host:"LEG-CB25317",mode:"Wi-Fi DHCP",vlan:"30 (Student wireless)"}},
+  {id:"LEG-25402",cls:"computer",type:"Chromebook",mfr:"Dell",model:"Dell Chromebook 3110",serial:"4WQC3Y3",status:"In Stock",loc:"107",specs:"Celeron N4500, 4 GB RAM, 32 GB eMMC",os:"ChromeOS (managed)",profile:"Chromebook",purchased:"Jul 2023",warranty:"Jul 31, 2027",net:{host:"LEG-CB25402",mode:"Wi-Fi DHCP",vlan:"30 (Student wireless)"}},
+  {id:"LEG-24150",cls:"computer",type:"Laptop",mfr:"Dell",model:"Dell Latitude 5440",serial:"8CVN2X3",status:"Deployed",loc:"art",staff:"rick",specs:"Core i5-1345U, 16 GB RAM, 256 GB SSD",os:"Windows 11 Pro 24H2",profile:"Staff Laptop",purchased:"Jul 2024",warranty:"Aug 31, 2027",net:{host:"LEG-LT24150",mode:"DHCP",vlan:"20 (Staff wired)"}},
+  {id:"LEG-19044",cls:"computer",type:"Desktop",mfr:"Dell",model:"Dell OptiPlex 3060",serial:"3KD8GN2",status:"Retired",loc:"107",specs:"Core i3-8100, 8 GB RAM, 256 GB SSD",os:"Windows 10 Pro",purchased:"Aug 2018",retired:"Failed beyond repair"}
+];
+
+/* ============ SEED BUILDER ============ */
+function rng(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function seed(){
+  const R = rng(158), pick = s => s[Math.floor(R()*s.length)];
+  const tagChars = "0123456789BCDFGHJKLMNPQRSTVWXYZ";
+  const svcTag = () => Array.from({length:7},()=>pick(tagChars)).join("");
+  const digits = n => Array.from({length:n},()=>Math.floor(R()*10)).join("");
+  const mac = () => ["F8","B4","6A",...Array.from({length:3},()=>Math.floor(R()*256).toString(16).toUpperCase().padStart(2,"0"))].join(":");
+  const now = Date.now(), D = 1440, ago = m => now - m*60000;
+
+  const locs = {};
+  SEED_LOCS.forEach(([id,number,name,type,wing,parent]) => locs[id] = {id,number,name,type,wing,parent:parent||null});
+  const staff = {};
+  SEED_STAFF.forEach(([name,role,loc,also]) => { const id = sid(name); staff[id] = {id,name,role,group:groupOf(role),locs:loc?[loc]:[],also:also||""}; });
+  staff.tech = {id:"tech",name:"E. Dawkins",role:"Mobile Technician",group:"Technology",locs:["107"],also:"",hidden:true};
+
+  const assets = {};
+  PRESET_ASSETS.forEach(a => assets[a.id] = JSON.parse(JSON.stringify(a)));
+  let tag = 30001, per = 1, ip = 20*256+20;
+  const portCount = {"LEG-20001":32,"LEG-20002":15,"LEG-20003":1};
+  const swFor = wing => wing==="k2" ? "LEG-20003" : (wing==="35"||wing==="nh") ? "LEG-20002" : "LEG-20001";
+  const closetOf = {"LEG-20001":"MDF","LEG-20002":"IDF-B","LEG-20003":"IDF-A"};
+  const wired = (loc, jack, host) => {
+    const sw = swFor(locs[loc].wing), p = portCount[sw]++;
+    const a = ip++; return {host, ip:`10.58.${Math.floor(a/256)}.${a%256}`, mode:"DHCP", mac:mac(), vlan:"20 (Staff wired)", jack, patch:`PP${Math.ceil(p/24)}-${p}`, sw, port:`Gi1/0/${p}`};
+  };
+  const has = (fn) => Object.values(assets).some(fn);
+  const add = (o) => { const id = o.untagged ? `PER-${String(per++).padStart(4,"0")}` : `LEG-${tag++}`; if (o.net && o.net.host === "#") o.net.host = o.net.hostFn(id); assets[id] = Object.assign({id,status:"Deployed",serial:o.untagged?"Not tracked":svcTag()}, o); return id; };
+  const events = []; let eid = 1;
+  const ev = (at, summary, o={}) => events.push({id:eid++, at, summary, wo:o.wo||null, assets:o.assets||[], loc:o.loc||null, staff:o.staff||null});
+
+  // Staff kits
+  const jackIdx = {};
+  Object.values(staff).forEach(s => {
+    if (s.hidden || s.group === "Temporary" || !s.locs.length) return;
+    const loc = s.locs[0];
+    jackIdx[loc] = (jackIdx[loc]||0);
+    const jack = `${locs[loc].number || locs[loc].name.split(" ")[0].toUpperCase().slice(0,3)}-${"ABCDEFGH"[jackIdx[loc]++]}`;
+    let lap = Object.values(assets).find(a => a.staff===s.id && a.type==="Laptop" && a.note!=="Loaner");
+    let lapId = lap ? lap.id : null;
+    if (!lap){
+      const n = net => net;
+      lapId = add({cls:"computer",type:"Laptop",mfr:"Dell",model:"Dell Latitude 5440",loc,staff:s.id,specs:"Core i5-1345U, 16 GB RAM, 256 GB SSD",os:"Windows 11 Pro 24H2",profile:"Staff Laptop",purchased:"Jul 2024",warranty:"Aug 31, 2027"});
+      assets[lapId].net = wired(loc, jack, `LEG-LT${lapId.slice(4)}`);
+      ev(ago(D*(410+Math.floor(R()*20))), `Deployed ${lapId} to ${s.name}, ${locLabel(locs[loc])}`, {assets:[lapId], loc, staff:s.id});
+    } else if (lap.net && !lap.net.jack){ Object.assign(lap.net, wired(loc, jack, lap.net.host)); }
+    let hub = Object.values(assets).find(a => a.staff===s.id && a.type==="USB-C hub");
+    const hubId = hub ? hub.id : add({cls:"peripheral",type:"USB-C hub",mfr:"Dell",model:"Dell DA310 USB-C hub",loc,staff:s.id,conn:lapId,serial:"CN0"+digits(7),purchased:"Jul 2024"});
+    if (!has(a => a.staff===s.id && a.type==="Monitor")) add({cls:"display",type:"Monitor",mfr:"Dell",model:"Dell P2422H monitor",loc,staff:s.id,conn:hubId,serial:"CN0"+digits(7),purchased:"Jul 2024"});
+    else { const m = Object.values(assets).find(a => a.staff===s.id && a.type==="Monitor"); if (!m.conn) m.conn = hubId; }
+    if (!has(a => a.staff===s.id && a.type==="Keyboard and mouse")) add({cls:"peripheral",type:"Keyboard and mouse",mfr:"Dell",model:"Dell KB216 keyboard, MS116 mouse",loc,staff:s.id,untagged:true});
+    if (s.group==="Related services" || s.group==="Instructional support"){
+      add({cls:"peripheral",type:"Webcam",mfr:"Logitech",model:"Logitech C920 webcam",loc,staff:s.id,serial:"2113"+digits(6),purchased:"Aug 2023"});
+      if (!has(a => a.staff===s.id && a.type==="Headset")) add({cls:"peripheral",type:"Headset",mfr:"Logitech",model:"Logitech H390 USB headset",loc,staff:s.id,untagged:true});
+    }
+  });
+
+  // Room kits
+  Object.values(locs).forEach(l => {
+    if (l.type==="classroom" || l.type==="specials" || l.type==="library"){
+      add({cls:"display",type:"Interactive display",mfr:"Promethean",model:"Promethean ActivPanel 9, 75 in",loc:l.id,serial:"AP9"+digits(8),purchased:"Jul 2023",warranty:"Jul 31, 2028"});
+      if (!has(a => a.loc===l.id && a.type==="Document camera")) add({cls:"display",type:"Document camera",mfr:"IPEVO",model:"IPEVO V4K document camera",loc:l.id,serial:"V4K"+digits(7),purchased:"Aug 2023"});
+    }
+    if (l.id==="gym") add({cls:"display",type:"Sound system",mfr:"Bogen",model:"Wall amplifier with wireless mic",loc:"gym",serial:"BG"+digits(8),purchased:"Aug 2019"});
+    const pc = (loc, n, prof) => { const id = add({cls:"computer",type:"Desktop",mfr:"Dell",model:"Dell OptiPlex 7010 Micro",loc,specs:"Core i5-13500T, 16 GB RAM, 512 GB SSD",os:"Windows 11 Pro 24H2",profile:prof,purchased:"Aug 2023",warranty:"Aug 31, 2026"});
+      assets[id].net = wired(loc, `${loc.toUpperCase()}-PC${n}`, `LEG-PC-${(locs[loc].number||loc).toUpperCase()}-0${n}`); return id; };
+    if (l.id==="101"){ pc("101",1,"Office PC"); pc("101",2,"Office PC"); }
+    if (l.id==="104"){ pc("104",1,"Office PC"); add({cls:"printer",type:"Label printer",mfr:"Dymo",model:"Dymo LabelWriter 550",loc:"104",serial:"DY"+digits(8),purchased:"Aug 2023"}); }
+    if (l.id==="lib") pc("lib",1,"Office PC");
+    if (l.id==="105"){ const id = add({cls:"printer",type:"Network printer (MFP)",mfr:"HP",model:"HP Color LaserJet MFP M480f",loc:"105",serial:"VNB3R"+digits(5),purchased:"Aug 2023"});
+      assets[id].net = Object.assign(wired("105","105-A","LEG-WRK-MFP01"),{vlan:"40 (Printers/AV)",mode:"DHCP reservation",ip:"10.58.40.11"}); }
+  });
+
+  // Chromebook carts (assigned to cart locations, never to students)
+  [["cart3",23],["cart4",24],["cart5",23],["cartlib",24]].forEach(([c,n]) => { for (let i=0;i<n;i++){ const id = add({cls:"computer",type:"Chromebook",mfr:"Dell",model:"Dell Chromebook 3110",loc:c,specs:"Celeron N4500, 4 GB RAM, 32 GB eMMC",os:"ChromeOS (managed)",profile:"Chromebook",purchased:"Jul 2023",warranty:"Jul 31, 2027"}); assets[id].net = {host:`LEG-CB${id.slice(4)}`,mode:"Wi-Fi DHCP",vlan:"30 (Student wireless)",mac:mac()}; } });
+
+  // Tech Storage stock
+  for (let i=0;i<6;i++){ const id = add({cls:"computer",type:"Chromebook",mfr:"Dell",model:"Dell Chromebook 3110",loc:"107",status:"In Stock",note:"Loaner pool",specs:"Celeron N4500, 4 GB RAM, 32 GB eMMC",os:"ChromeOS (managed)",profile:"Chromebook",purchased:"Jul 2023",warranty:"Jul 31, 2027"}); assets[id].net = {host:`LEG-CB${id.slice(4)}`,mode:"Wi-Fi DHCP",vlan:"30 (Student wireless)",mac:mac()}; }
+  for (let i=0;i<3;i++) add({cls:"display",type:"Monitor",mfr:"Dell",model:"Dell P2422H monitor",loc:"107",status:"In Stock",serial:"CN0"+digits(7),purchased:"Jul 2024"});
+  for (let i=0;i<2;i++) add({cls:"peripheral",type:"USB-C hub",mfr:"Dell",model:"Dell DA310 USB-C hub",loc:"107",status:"In Stock",serial:"CN0"+digits(7),purchased:"Jul 2024"});
+  for (let i=0;i<4;i++) add({cls:"peripheral",type:"Keyboard and mouse",mfr:"Dell",model:"Dell KB216 keyboard, MS116 mouse",loc:"107",status:"In Stock",untagged:true});
+
+  // Wireless access points
+  ["101","111","114","121","125","131","141","151","161","165","173","182","lib","gym"].forEach((l,i) => {
+    const id = add({cls:"network",type:"Wireless access point",mfr:"Cisco Meraki",model:"Cisco Meraki MR46",loc:l,serial:"Q3AB-"+digits(4)+"-"+digits(4),purchased:"Jun 2022"});
+    const sw = swFor(locs[l].wing), p = portCount[sw]++;
+    assets[id].net = {host:`LEG-AP${String(i+1).padStart(2,"0")}`,ip:`10.58.10.${100+i}`,mode:"Static",vlan:"10 (Management)",mac:mac(),jack:`${(locs[l].number||l).toUpperCase()}-CEIL`,patch:`PP${Math.ceil(p/24)}-${p}`,sw,port:`Gi1/0/${p}`};
+  });
+
+  // Software lists from profiles
+  Object.values(assets).forEach(a => { if (a.profile) a.software = PROFILES[a.profile].slice(); });
+
+  // Work orders
+  const wos = {};
+  const tpl = (cat, extra) => { const s = TEMPLATES[cat].slice(); if (extra) s.splice(extra.at,0,extra.t); return s.map(t => ({t,done:false,r:""})); };
+  const mk = o => {
+    const w = Object.assign({type:"Incident",status:"New",symptoms:"",findings:"",actions:"",resolution:"",faultAt:null,waiting:null,confirmed:false}, o);
+    w.checklist = tpl(o.cat, o.extra); delete w.extra; wos[w.id] = w;
+    ev(w.created, `Reported by ${staff[w.by].name}: ${w.title}`, {wo:w.id, assets:w.asset?[w.asset]:[], loc:w.loc, staff:w.by});
+    return w;
+  };
+  ev(ago(D*430), "Received and tagged LEG-24161 (Dell Latitude 5440)", {assets:["LEG-24161"], loc:"107"});
+  ev(ago(D*425), "Deployed LEG-24161 to Christina Bessey, Room 161, with DA310 hub and P2422H monitor", {assets:["LEG-24161","LEG-24318","LEG-23561"], loc:"161", staff:"bessey"});
+  ev(ago(D*2+300), "Closet cleanup in IDF-B: patch panel PP2 relabeled, ports 1-24", {assets:["LEG-20002"], loc:"idfb"});
+  ev(ago(D*190), "Retired LEG-19044 (OptiPlex 3060): failed POST, past end of life", {assets:["LEG-19044"], loc:"104", wo:"WO-0950"});
+
+  mk({id:"WO-1042",title:"Teacher laptop has no network when docked",pri:"High",cat:"Network",loc:"161",by:"bessey",asset:"LEG-24161",created:ago(38),
+      report:"Laptop shows \"No internet\" when plugged into the hub at the teacher desk. Wi-Fi works but drops during lessons, and the display software can't reach the shared lesson drive.",extra:{at:3,t:"Swap in a known-good USB-C hub"}});
+  mk({id:"WO-1043",title:"Network printer offline",pri:"High",cat:"Printer",loc:"lib",by:"wise",asset:"LEG-21407",created:ago(65),
+      report:"Library printer shows offline for everyone. Staff need to print book fair sign-up sheets this afternoon."});
+  mk({id:"WO-1044",title:"Projector shows no signal before 1:00 PM assembly",pri:"High",cat:"Display/AV",loc:"gym",by:"nickol",asset:"LEG-22031",created:ago(22),
+      report:"Ceiling projector says \"No signal\" from the gym laptop. Grade-level assembly starts at 1:00 PM."});
+  const w45 = mk({id:"WO-1045",title:"Replace flickering monitor",pri:"Medium",cat:"Peripheral",loc:"152",by:"isonhart",asset:"LEG-23552",created:ago(D+140),report:"Monitor flickers and goes black every few minutes during lessons."});
+  w45.status="In Progress"; w45.started=ago(40);
+  w45.checklist[0].done=true; w45.checklist[0].r="Same flicker on every port";
+  w45.checklist[1].done=true; w45.checklist[1].r="Flicker follows the monitor to Room 151's laptop";
+  w45.findings="Monitor backlight failing. Hub and laptop are fine.";
+  ev(ago(40),"Started work",{wo:"WO-1045",assets:["LEG-23552"],loc:"152",staff:"isonhart"});
+  ev(ago(31),"Checked \"Test on another computer\": flicker follows the monitor",{wo:"WO-1045",assets:["LEG-23552"],loc:"152",staff:"isonhart"});
+  mk({id:"WO-1046",title:"Keyboard: several keys don't respond",pri:"Medium",cat:"Peripheral",loc:"111",by:"davey",asset:"PER-0111",created:ago(140),report:"The E, R and T keys don't type on the desk keyboard."});
+  const w47 = mk({id:"WO-1047",title:"Laptop not charging; loaner issued",pri:"Medium",cat:"Hardware",loc:"102",by:"weirich",asset:"LEG-24102",created:ago(D*2+60),report:"Laptop won't charge from the USB-C charger. Battery at 4%."});
+  w47.status="Waiting"; w47.started=ago(D*2+20); w47.waiting={reason:"Parts on order",since:ago(D*2-30)};
+  w47.checklist[0].done=true; w47.checklist[0].r="No charging light with the original charger";
+  w47.checklist[1].done=true; w47.checklist[1].r="Charges normally from a known-good charger";
+  w47.findings="Original charger is dead. Laptop and port are fine."; w47.actions="Issued loaner LEG-24990. Ordered a replacement 65W USB-C charger.";
+  ev(ago(D*2+20),"Started work",{wo:"WO-1047",assets:["LEG-24102"],loc:"102",staff:"weirich"});
+  ev(ago(D*2),"Issued loaner LEG-24990 to Michelle Weirich",{wo:"WO-1047",assets:["LEG-24102","LEG-24990"],loc:"102",staff:"weirich"});
+  ev(ago(D*2-30),"Set to Waiting: Parts on order",{wo:"WO-1047",assets:["LEG-24102"],loc:"102",staff:"weirich"});
+  mk({id:"WO-1048",title:"Document camera not detected",pri:"Medium",cat:"Display/AV",loc:"mus",by:"bell",asset:"LEG-22870",created:ago(190),report:"The document camera isn't detected by the camera app on the laptop."});
+  mk({id:"WO-1049",title:"USB headset microphone not detected",pri:"Medium",cat:"Peripheral",loc:"190",by:"fleck",asset:"PER-0190",created:ago(260),report:"Headset mic isn't picked up during video sessions. The speakers work."});
+  const w50 = mk({id:"WO-1050",title:"Cart 3 Chromebook has a cracked screen",pri:"Medium",cat:"Hardware",loc:"141",by:"goldberg",asset:"LEG-25317",created:ago(D*6),report:"One Chromebook from Cart 3 has a cracked screen."});
+  w50.status="Waiting"; w50.started=ago(D*6-60); w50.waiting={reason:"Vendor repair",since:ago(D*5)};
+  w50.findings="Cracked LCD, no other damage. Covered by accidental damage protection."; w50.actions="Logged with the vendor repair depot. Pulled from Cart 3; cart is at 23 of 24.";
+  ev(ago(D*5),"Set to Waiting: Vendor repair",{wo:"WO-1050",assets:["LEG-25317"],loc:"141",staff:"goldberg"});
+  mk({id:"WO-1051",type:"Request",title:"Deploy replacement Chromebook to Cart 5",pri:"Low",cat:"Deployment",loc:"165",by:"scott",asset:"LEG-25402",created:ago(D+30),report:"Cart 5 is one short after a damaged unit went out for repair. Please add a replacement."});
+  mk({id:"WO-1052",type:"Request",title:"Install approved drawing app",pri:"Low",cat:"Software",loc:"art",by:"rick",asset:"LEG-24150",created:ago(D*2+60),report:"Please install the district-approved drawing app on my laptop for the 4th grade unit."});
+  mk({id:"WO-1053",type:"Request",title:"Receive and inventory 3 new Latitude laptops",pri:"Low",cat:"Deployment",loc:"107",by:"tech",asset:null,created:ago(D+200),report:"Three Dell Latitude 5450 laptops arrived on the delivery cart. Receive, tag and inventory them before configuration."});
+  const done = (o, rAgo) => {
+    const w = mk(Object.assign({status:"Closed"}, o));
+    w.checklist.forEach(s => s.done = true); w.started = w.created + 20*60000;
+    w.resolvedAt = ago(rAgo); w.closedAt = w.resolvedAt + 3600000; w.confirmed = true;
+    const L = {wo:w.id, assets:w.asset?[w.asset]:[], loc:w.loc, staff:w.by};
+    ev(w.resolvedAt, `Resolved: ${w.resolution}`, L); ev(w.closedAt, "Closed after confirming with staff", L);
+  };
+  done({id:"WO-1036",title:"Main office copier jams in tray 2",pri:"Medium",cat:"Printer",loc:"101",by:"mitchell",asset:"LEG-21390",created:ago(D*3+120),report:"Copier jams every few pages from tray 2.",resolution:"Cleared the jam and replaced the worn tray 2 pickup roller from spare stock."}, D*3);
+  done({id:"WO-1031",title:"Hub USB ports not working",pri:"Medium",cat:"Peripheral",loc:"124",by:"kehler",asset:null,created:ago(D*9+200),report:"Mouse and keyboard stop working when plugged into the hub.",resolution:"Hub USB ports dead. Swapped in a DA310 hub from stock; old hub retired."}, D*9);
+  done({id:"WO-1024",title:"Interactive display touch lag",pri:"Low",cat:"Display/AV",loc:"113",by:"kolozsy",asset:null,created:ago(D*16+300),report:"Touch response on the display is delayed.",resolution:"Updated the interactive display firmware; touch response normal."}, D*16);
+  done({id:"WO-1021",title:"Health office PC very slow to start",pri:"High",cat:"Hardware",loc:"104",by:"ossler",asset:null,created:ago(D*24+90),report:"The health office PC takes over 10 minutes to start.",resolution:"SSD failing its health check. Replaced with a 512 GB SSD, reimaged with the Office PC profile."}, D*24);
+  done({id:"WO-1019",title:"Library printer offline after power outage",pri:"High",cat:"Printer",loc:"lib",by:"wise",asset:"LEG-21407",created:ago(D*21+80),report:"Printer went offline after the weekend power outage.",resolution:"Printer took a new IP after the outage. Created DHCP reservation 10.58.40.21 and updated the print queue."}, D*21);
+  done({id:"WO-0987",title:"No display on monitor after summer cleaning",pri:"Medium",cat:"Display/AV",loc:"161",by:"bessey",asset:"LEG-24161",created:ago(D*122+60),report:"Monitor shows nothing when the laptop is docked.",resolution:"HDMI cable loose at the hub after summer cleaning. Reseated and secured it with a cable tie."}, D*122);
+  done({id:"WO-0950",type:"Request",title:"Retire failed OptiPlex 3060",pri:"Low",cat:"Hardware",loc:"104",by:"tech",asset:"LEG-19044",created:ago(D*190+60),report:"OptiPlex 3060 in the health office fails POST.",resolution:"Past end of life and failed POST. Retired; replaced by an OptiPlex 7010."}, D*190);
+  done({id:"WO-0811",title:"Laptop slow with display software",pri:"Low",cat:"Hardware",loc:"161",by:"bessey",asset:"LEG-24161",created:ago(D*395+60),report:"Display software lags with several tabs open.",resolution:"Upgraded RAM from 8 GB to 16 GB."}, D*395);
+
+  return {schemaVersion:SCHEMA, seededAt:now, locs, staff, assets, wos, events, next:{event:eid, tag, per, wo:1054}, ui:{group:"priority"}};
+}
+
+/* ============ STORE ============ */
+let S, storageOK = true, notice = "";
+function load(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if (raw){ const d = JSON.parse(raw); if (d && d.schemaVersion===SCHEMA && d.assets){ S = d; return; } notice = "Saved data was from an older version, so the demo data was reloaded."; }
+  }catch(e){ storageOK = false; }
+  S = seed(); save();
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); storageOK = true; }catch(e){ storageOK = false; } }
+function logEv(summary, o={}){ S.events.push({id:S.next.event++, at:Date.now(), summary, wo:o.wo||null, assets:o.assets||[], loc:o.loc||null, staff:o.staff||null}); }
+function logWO(w, summary){ logEv(summary, {wo:w.id, assets:w.asset?[w.asset]:[], loc:w.loc, staff:w.by}); }
+function act(w, summary, fn){ fn(w); if (summary) logWO(w, summary); save(); route(); }
+function commit(summary, links, fn){ fn(); logEv(summary, links); save(); route(); }
+
+/* ============ HELPERS ============ */
+const H = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const cls = s => String(s).replace(/\s+/g,"");
+const L = id => S.locs[id];
+function locLabel(l){ return l ? (l.number ? `Room ${l.number}` : l.name) : "No fixed location"; }
+const locShort = l => l ? (l.number || l.name) : "None";
+const plateText = l => l.number || (l.type==="cart" ? l.name.replace("Library Chromebook cart","Library cart").replace(/^Chromebook /,"") : l.name.split(/[ \/]/)[0]);
+const locSub = l => l.number ? l.name : LOC_TYPES[l.type];
+const wingName = k => (WINGS.find(x => x[0]===k)||[])[1] || "";
+const locLink = id => id && L(id) ? `<a href="#/room/${id}">${H(locLabel(L(id)))}</a>` : `<span class="muted">No fixed location</span>`;
+const plate = (id, big, full) => id && L(id) ? `<a class="plate${big?" big":""}" href="#/room/${id}" title="${H(locLabel(L(id)))}">${H(full?locLabel(L(id)):plateText(L(id)))}</a>` : "";
+const staffLink = id => id && S.staff[id] ? `<a href="#/staff/${id}">${H(S.staff[id].name)}</a>` : "";
+const assetLink = id => id && S.assets[id] ? `<a class="mono" href="#/asset/${H(id)}">${H(id)}</a>` : "";
+function age(ts){ const m = Math.max(0, Math.round((Date.now()-ts)/60000)); if (m<60) return m+" min"; if (m<1440) return Math.round(m/60)+" hr"; const d = Math.round(m/1440); return d+(d===1?" day":" days"); }
+function when(ts){ const d = new Date(ts), old = Date.now()-ts > 300*86400000; return d.toLocaleString([], old ? {month:"short",day:"numeric",year:"numeric"} : {weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}); }
+const isOpen = w => ["New","In Progress"].includes(w.status);
+const staffLine = id => S.staff[id] ? `${H(S.staff[id].name)}, ${H(S.staff[id].role)}` : "";
+const priChip = p => `<span class="chip p-${p}">${p}</span>`;
+const stChip = s => `<span class="chip s-${cls(s)}">${s}</span>`;
+const aStat = s => `<span class="chip a-${cls(s)}">${H(s)}</span>`;
+const sortedLocs = () => Object.values(S.locs).sort((a,b) => WINGS.findIndex(w=>w[0]===a.wing)-WINGS.findIndex(w=>w[0]===b.wing) || (a.number||"zz"+a.name).localeCompare(b.number||"zz"+b.name, undefined, {numeric:true}));
+const visibleStaff = () => Object.values(S.staff).filter(s => !s.hidden).sort((a,b) => a.name.split(" ").pop().localeCompare(b.name.split(" ").pop()));
+const activeAssets = () => Object.values(S.assets).filter(a => a.status !== "Retired");
+const openWOs = pred => Object.values(S.wos).filter(w => w.status!=="Resolved" && w.status!=="Closed" && pred(w));
+function histFor(pred, n=10){ return S.events.filter(pred).sort((a,b)=>b.at-a.at).slice(0,n); }
+function histHTML(list, empty){ return list.length ? `<ul class="hist">${list.map(e=>`<li><time>${H(when(e.at))}</time>${e.wo?`<a class="mono" href="#/wo/${e.wo}">${e.wo}</a> `:""}${H(e.summary)}</li>`).join("")}</ul>` : `<p class="empty">${empty}</p>`; }
+function qs(){ const i = location.hash.indexOf("?"); return new URLSearchParams(i>=0 ? location.hash.slice(i+1) : ""); }
+function buildPath(a){
+  if (!a || !a.net || !a.net.jack || !a.net.sw) return null;
+  const sw = S.assets[a.net.sw]; if (!sw) return null;
+  const closet = {mdf:"MDF",idfa:"IDF-A",idfb:"IDF-B"}[sw.loc] || "";
+  const p = [{k:a.type, v:a.net.host || a.id}];
+  const hub = Object.values(S.assets).find(x => x.conn===a.id && x.type==="USB-C hub" && x.status!=="Retired");
+  if (hub) p.push({k:"USB-C hub (Ethernet)", v:`DA310, ${hub.id}`, ref:hub.id});
+  p.push({k:"Wall jack", v:a.net.jack}, {k:"Patch panel", v:`${closet} ${a.net.patch}`}, {k:"Network switch port", v:`${sw.net.host} ${a.net.port}`, ref:sw.id});
+  return p;
+}
+const classOrder = Object.keys(CLASSES);
+const byClass = (a,b) => classOrder.indexOf(a.cls)-classOrder.indexOf(b.cls) || a.type.localeCompare(b.type) || a.id.localeCompare(b.id);
+// Equipment table. cols: which of "loc" / "staff" to show. grouped: insert class header rows.
+function eqTable(list, cols, empty, grouped){
+  if (!list.length) return `<p class="empty">${empty || "No equipment recorded."}</p>`;
+  const showLoc = cols.includes("loc"), showStaff = cols.includes("staff");
+  let last = "", rows = "";
+  list.forEach(a => {
+    if (grouped && a.cls !== last){ last = a.cls; rows += `<tr class="grp"><td colspan="${4+showLoc+showStaff}">${CLASSES[a.cls]}</td></tr>`; }
+    rows += `<tr><td>${assetLink(a.id)}</td><td>${H(a.type)}</td><td>${H(a.model)}</td>${showLoc?`<td>${locLink(a.loc)}</td>`:""}${showStaff?`<td>${a.staff?staffLink(a.staff):(a.loc&&L(a.loc)&&L(a.loc).type==="cart"?"Cart":'<span class="muted">Room equipment</span>')}</td>`:""}<td>${aStat(a.status)}</td></tr>`;
+  });
+  return `<div class="tblwrap"><table class="tbl"><thead><tr><th>Tag</th><th>Device</th><th>Model</th>${showLoc?"<th>Location</th>":""}${showStaff?"<th>Assigned to</th>":""}<th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function pathHTML(path, w, locked, selfId){
+  const clickable = !!w;
+  return `<ol class="path">${path.map((p,i)=>{
+    const found = w && w.faultAt===i;
+    const inner = `<span class="k">${H(p.k)}${found?`<span class="found-tag">Problem found here</span>`:""}</span><span class="v">${p.ref && p.ref!==selfId && !clickable ? `<a href="#/asset/${H(p.ref)}">${H(p.v)}</a>` : H(p.v)}</span>`;
+    return `<li class="${found?"found":""}"><span class="node" aria-hidden="true"></span>${clickable
+      ? `<button type="button" data-act="fault" data-i="${i}" ${locked?"disabled":""} aria-pressed="${found}">${inner}</button>`
+      : `<div class="stat">${inner}</div>`}</li>`; }).join("")}</ol>`;
+}
+// Decorative barcode drawn from the tag text so each label looks unique (not a real symbology)
+function barcode(tag){
+  let x = 0, bars = "";
+  const unit = w => { const r = `<rect x="${x}" y="0" width="${w}" height="32"/>`; return r; };
+  bars += unit(2); x += 3; bars += unit(1); x += 3;
+  for (const ch of tag){ const n = ch.charCodeAt(0);
+    for (let k = 0; k < 4; k++){ const w = 1 + ((n >> k) & 1) + ((n >> (k+3)) & 1 ? 1 : 0); bars += unit(w); x += w + 1 + ((n >> (k+1)) & 1); } }
+  bars += unit(1); x += 2; bars += unit(2); x += 2;
+  return `<svg viewBox="0 0 ${x} 32" width="${x*1.15}" height="32" aria-hidden="true" focusable="false">${bars}</svg>`;
+}
+let flashMsg = "", flashWarn = false;
+function flash(m, warn){ flashMsg = m; flashWarn = !!warn; }
+
+/* ============ NAV ============ */
+function renderNav(){
+  const h = location.hash || "#/queue";
+  const on = (...p) => p.some(x => h.startsWith(x)) ? 'aria-current="page"' : "";
+  document.getElementById("nav").innerHTML = `
+    <li><a href="#/queue" ${on("#/queue","#/wo/")||(h==="#/"||h==="#"?'aria-current="page"':"")}>Work queue</a></li>
+    <li><a href="#/locations" ${on("#/locations","#/room/")}>Locations</a></li>
+    <li><a href="#/staff" ${on("#/staff")}>Staff</a></li>
+    <li><a href="#/assets" ${on("#/assets","#/asset/","#/receive")}>Equipment</a></li>
+    <li class="sep" aria-hidden="true"></li>
+    <li><a href="#/new" ${on("#/new")}>New work order</a></li>
+    <li><a href="#/search" ${on("#/search")}>Search</a></li>`;
+}
+
+/* ============ WORK QUEUE ============ */
+let Q = {q:"", cat:"", tab:"open"};
+function renderQueue(){
+  const all = Object.values(S.wos);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const open = all.filter(isOpen), waiting = all.filter(w=>w.status==="Waiting");
+  const high = open.filter(w=>w.pri==="High").length, doneToday = all.filter(w=>w.resolvedAt && w.resolvedAt>=today.getTime()).length;
+  main.innerHTML = `${banner()}
+    <div class="ph"><div><h1>Today's work</h1>
+      <div class="sub">${new Date().toLocaleDateString([], {weekday:"long",month:"long",day:"numeric"})}</div></div>
+      <div class="acts"><a class="btn primary" href="#/new">New work order</a></div></div>
+    <div class="board" role="group" aria-label="Today at a glance">
+      <div><b>${open.length}</b><span>To do</span></div>
+      <div class="${high?"hot":""}"><b>${high}</b><span>High priority</span></div>
+      <div><b>${waiting.length}</b><span>Waiting</span></div>
+      <div><b>${doneToday}</b><span>Resolved today</span></div>
+    </div>
+    <div class="toolbar">
+      <div class="seg" role="group" aria-label="Show">
+        <button type="button" data-act="tab" data-v="open" aria-pressed="${Q.tab==="open"}">Open</button>
+        <button type="button" data-act="tab" data-v="done" aria-pressed="${Q.tab==="done"}">Resolved and closed</button>
+      </div>
+      ${Q.tab==="done"?"":`<div class="seg" role="group" aria-label="Group by">
+        <button type="button" data-act="group" data-v="priority" aria-pressed="${S.ui.group==="priority"}">By priority</button>
+        <button type="button" data-act="group" data-v="route" aria-pressed="${S.ui.group==="route"}">By route</button>
+      </div>`}
+      <input type="search" class="field grow" id="qsearch" placeholder="Filter by room, name, tag or WO number" value="${H(Q.q)}" aria-label="Filter work orders">
+      <select class="field" id="qcat" aria-label="Category"><option value="">All categories</option>${Object.keys(TEMPLATES).map(c=>`<option ${Q.cat===c?"selected":""}>${c}</option>`).join("")}</select>
+    </div>
+    <div id="lanes"></div>`;
+  renderLanes();
+}
+function matches(w){
+  if (Q.cat && w.cat !== Q.cat) return false;
+  if (!Q.q) return true;
+  const a = S.assets[w.asset], l = L(w.loc);
+  const hay = [w.id, w.title, l&&l.name, l&&l.number, l&&locLabel(l), S.staff[w.by]&&S.staff[w.by].name, w.asset, a&&a.model, a&&a.net&&a.net.host, w.cat].join(" ").toLowerCase();
+  return Q.q.toLowerCase().split(/\s+/).every(t => hay.includes(t));
+}
+function row(w){
+  const a = S.assets[w.asset], st = S.staff[w.by];
+  const state = w.status==="Waiting" ? `${stChip("Waiting")}<span>${H(w.waiting.reason)}, ${age(w.waiting.since)}</span>`
+    : (w.status==="Resolved"||w.status==="Closed") ? `${stChip(w.status)}<span>${H(when(w.resolvedAt))}</span>`
+    : `${stChip(w.status)}<span>Reported ${age(w.created)} ago</span>`;
+  return `<a class="wrow r-${w.pri}" href="#/wo/${w.id}">
+    <span class="pri">${priChip(w.pri)}</span>
+    <span class="pl"><span class="plate" title="${H(locLabel(L(w.loc)))}">${H(plateText(L(w.loc)))}</span></span>
+    <span class="what"><b>${H(w.title)}</b><span>${st?H(st.name):""}${st&&st.id!=="tech"?`, ${H(st.role)}`:""}</span></span>
+    <span class="eq">${a?`<span>${H(a.model)}</span><span class="mono">${H(a.id)}</span>`:`<span class="muted">${w.type==="Request"?"Request":"No device"}</span><span class="mono">${w.id}</span>`}</span>
+    <span class="state">${state}</span></a>`;
+}
+const priSort = (a,b) => (PRI.indexOf(a.pri)-PRI.indexOf(b.pri)) || ((b.status==="In Progress")-(a.status==="In Progress")) || (a.created-b.created);
+const workList = (list, empty) => list.length ? `<div class="wl">${list.slice().sort(priSort).map(row).join("")}</div>` : `<p class="empty">${empty}</p>`;
+function renderLanes(){
+  const el = document.getElementById("lanes"); if (!el) return;
+  const all = Object.values(S.wos).filter(matches);
+  if (Q.tab==="done"){
+    const list = all.filter(w => w.status==="Resolved"||w.status==="Closed").sort((a,b)=>b.resolvedAt-a.resolvedAt);
+    el.innerHTML = list.length ? `<div class="wl">${list.map(row).join("")}</div>` : `<p class="empty">No resolved work orders match your filter.</p>`; return;
+  }
+  const open = all.filter(isOpen), waiting = all.filter(w => w.status==="Waiting").sort((a,b)=>a.waiting.since-b.waiting.since);
+  let html = "";
+  if (S.ui.group==="priority"){
+    for (const p of PRI){ const list = open.filter(w => w.pri===p);
+      html += `<h2 class="grouphead">${p} priority <span class="n">${list.length}</span></h2>${workList(list, `Nothing ${p.toLowerCase()} priority right now.`)}`; }
+  } else {
+    for (const [k,label] of WINGS){
+      const list = open.filter(w => L(w.loc).wing===k); if (!list.length) continue;
+      const stops = [...new Set(list.map(w => locShort(L(w.loc))))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+      html += `<h2 class="grouphead">${label} <span class="stops">${stops.length} ${stops.length===1?"stop":"stops"}: ${H(stops.join(", "))}</span></h2>${workList(list,"")}`;
+    }
+    if (!open.length) html += `<p class="empty">No open work matches your filter.</p>`;
+  }
+  html += `<h2 class="grouphead">Waiting on something <span class="n">${waiting.length}</span></h2>${waiting.length?`<div class="wl">${waiting.map(row).join("")}</div>`:`<p class="empty">Nothing waiting on parts, vendors or staff.</p>`}`;
+  el.innerHTML = html;
+}
+
+/* ============ WORK ORDER ============ */
+let woErr = "";
+function renderWO(id){
+  const w = S.wos[id];
+  if (!w){ main.innerHTML = `<div class="sheet"><div class="sec"><h2>${H(id)} doesn't exist</h2><p><a href="#/queue">Back to the work queue</a></p></div></div>`; return; }
+  const a = S.assets[w.asset], loc = L(w.loc), st = S.staff[w.by];
+  const locked = w.status==="Closed", ro = locked ? "readonly" : "";
+  const idx = STATUSES.indexOf(w.status);
+  const progress = STATUSES.map((s,i) => { let c = i<idx ? "done" : i===idx ? "now" : ""; if (s==="Waiting" && !w.waiting && i<idx) c = "skip"; return `<li class="${c}">${s}</li>`; }).join("");
+  let actions = "";
+  if (w.status==="New") actions = `<button class="btn primary" data-act="start">Start work</button>`;
+  else if (w.status==="In Progress") actions = `<select class="field" id="waitreason" aria-label="Reason for waiting">${WAIT_REASONS.map(r=>`<option>${r}</option>`).join("")}</select><button class="btn" data-act="wait">Set waiting</button><button class="btn primary" data-act="resolve">Resolve</button>`;
+  else if (w.status==="Waiting") actions = `<span class="muted">Waiting: ${H(w.waiting.reason)}, ${age(w.waiting.since)}</span><button class="btn primary" data-act="resume">Resume work</button>`;
+  else if (w.status==="Resolved") actions = `<label class="closebox"><input type="checkbox" id="confirmed" ${w.confirmed?"checked":""}> Fix confirmed with ${H(st.id==="tech"?"staff":st.name.split(" ")[0])}</label><button class="btn quiet" data-act="reopen">Reopen</button><button class="btn primary" data-act="close">Close work order</button>`;
+  else actions = `<button class="btn" data-act="reopen">Reopen</button>`;
+  const own = S.events.filter(e => e.wo===w.id).sort((x,y)=>x.at-y.at);
+  const path = a ? (a.path || buildPath(a)) : null;
+  const refIds = new Set([w.asset, ...Object.values(S.assets).filter(x=>x.conn===w.asset).map(x=>x.id), ...((path||[]).map(p=>p.ref).filter(Boolean))].filter(Boolean));
+  const history = histFor(e => e.wo!==w.id && (e.loc===w.loc || e.assets.some(x => refIds.has(x))), 6);
+  const done = w.checklist.filter(s=>s.done).length;
+  main.innerHTML = `${banner()}
+    <div class="crumbs"><a href="#/queue">Work queue</a> / <span class="mono">${w.id}</span></div>
+    <div class="ph"><div><h1>${H(w.title)}</h1>
+      <div class="ctx sepd">${plate(w.loc,false,true)} ${st.id!=="tech"?`<span>${staffLink(w.by)}, ${H(st.role)}</span>`:`<span class="muted">Opened by the technician</span>`} ${a?`<span>${H(a.model)} ${assetLink(a.id)}</span>`:""}</div>
+      <div class="ctx">${priChip(w.pri)} ${stChip(w.status)} <span class="muted">${H(w.cat)} ${w.type==="Request"?"request":"problem"}, reported ${H(when(w.created))}</span></div></div>
+      <div class="acts">${actions}${woErr?`<div class="err" role="alert">${H(woErr)}</div>`:""}</div></div>
+    <ol class="progress" aria-label="Work order status">${progress}</ol>
+    <div class="grid2"><div>
+      <div class="sheet">
+        <section class="sec"><h2>Problem</h2>
+          <blockquote class="report">${H(w.report)}</blockquote>
+          <p class="by">Reported by ${st.id==="tech"?"the technician":H(st.name)}, ${H(when(w.created))}</p>
+          <label class="lbl" for="f-symptoms">What you see when you get there <span class="hint">(optional)</span></label>
+          <textarea id="f-symptoms" data-field="symptoms" ${ro} placeholder="Example: hub link light is off, laptop shows 169.254 address">${H(w.symptoms)}</textarea></section>
+        <section class="sec"><h2>Check it <span class="n">${done} of ${w.checklist.length} checked</span></h2>
+          <div class="checkhead" aria-hidden="true"><span>Check</span><span>What you saw</span></div>
+          <ul class="checks">${w.checklist.map((s,i)=>`<li class="check ${s.done?"done":""}">
+            <label><input type="checkbox" data-act="step" data-i="${i}" ${s.done?"checked":""} ${locked?"disabled":""}><span>${H(s.t)}</span></label>
+            <input class="res" data-act="stepres" data-i="${i}" value="${H(s.r)}" placeholder="What you saw" aria-label="What you saw: ${H(s.t)}" ${ro}></li>`).join("")}</ul>
+          ${locked?"":`<details class="more"><summary>Add a step</summary><div class="inline"><input class="field" id="newstep" placeholder="Example: Test with a known-good charger" aria-label="New check"><button class="btn" data-act="addstep">Add step</button></div></details>`}
+          <p class="note">Record what you physically checked and what you saw. The app does not run diagnostics.</p></section>
+        <section class="sec"><h2><label for="f-findings">What I found</label></h2><textarea id="f-findings" data-field="findings" ${ro} placeholder="Example: patch cable for jack 161-A unplugged at IDF-B">${H(w.findings)}</textarea></section>
+        <section class="sec"><h2><label for="f-actions">What I did</label></h2><textarea id="f-actions" data-field="actions" ${ro} placeholder="Example: reconnected the patch cable to Gi1/0/14">${H(w.actions)}</textarea></section>
+        <section class="sec"><h2><label for="f-resolution">Result</label> <span class="hint">Required to resolve</span></h2><textarea id="f-resolution" data-field="resolution" ${ro} placeholder="Example: link up, laptop pulled an address, lesson drive opens">${H(w.resolution)}</textarea></section>
+        ${repairHTML(w, a)}${deployOrderHTML(w)}
+        <section class="sec"><h2>History</h2><ul class="timeline">${own.map(e=>`<li><time>${H(when(e.at))}</time><span>${H(e.summary)}</span></li>`).join("")}</ul></section>
+      </div>
+    </div><aside>
+      ${path ? `<div class="sheet"><section class="sec"><h2>Connection path</h2><p class="pathhint">${locked?"How this device reaches the network.":"Click the point where you found the problem."}</p>${pathHTML(path, w, locked)}</section></div>` : ""}
+      ${a ? deviceHTML(w, a) : `<div class="sheet"><section class="sec"><h2>Equipment</h2><p class="empty">No device linked. ${w.cat==="Deployment"?"New equipment gets its records when it's received.":""}</p></section></div>`}
+      <div class="sheet"><section class="sec"><h2>Recent work here</h2>${histHTML(history,"Nothing else recorded for this room or device.")}</section></div>
+    </aside></div>`;
+  woErr = "";
+}
+function deviceHTML(w, a){
+  const n = a.net || {};
+  const rows = [["Serial",a.serial,1],["Status",a.status],["Specs",a.specs],["OS",a.os],["Hostname",n.host,1],["IP",n.ip?`${n.ip} (${n.mode})`:null,1],["MAC",n.mac,1],["VLAN",n.vlan],["Assigned to",a.staff?S.staff[a.staff].name:(a.loc&&L(a.loc).type==="cart"?L(a.loc).name:"Room equipment")],["Warranty",a.warranty]]
+    .filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd${r[2]?' class="mono"':""}>${H(r[1])}</dd>`).join("");
+  const connected = Object.values(S.assets).filter(x => x.conn===a.id && x.status!=="Retired");
+  return `<div class="sheet"><section class="sec"><h2>Equipment</h2>
+    <p class="devname"><b>${H(a.model)}</b><br>${assetLink(a.id)}</p>
+    ${w.replacedWith?`<p class="flash tight">Replaced by ${assetLink(w.replacedWith)}</p>`:""}
+    <dl class="kv">${rows}</dl>
+    ${connected.length?`<p class="note gap">Connected: ${connected.map(x=>`${assetLink(x.id)} ${H(x.type)}`).join(", ")}</p>`:""}</section></div>`;
+}
+
+/* ============ LOCATIONS ============ */
+function renderLocations(){
+  const locs = sortedLocs();
+  let html = `${banner()}<div class="ph"><div><h1>Locations</h1><div class="sub">${locs.length} spaces, grouped by wing. Room numbers are simulated and can be edited.</div></div></div>`;
+  for (const [k,label] of WINGS){
+    const list = locs.filter(l => l.wing===k); if (!list.length) continue;
+    html += `<h2 class="grouphead">${label} <span class="n">${list.length}</span></h2><div class="tblwrap"><table class="tbl"><thead><tr><th>Room</th><th>Used for</th><th>Who works here</th><th class="num">Equipment</th><th class="num">Open problems</th></tr></thead><tbody>
+      ${list.map(l => { const st = visibleStaff().filter(s => s.locs.includes(l.id)); const eq = activeAssets().filter(a => a.loc===l.id).length; const ow = openWOs(w => w.loc===l.id).length;
+        return `<tr><td>${plate(l.id)}</td><td><a href="#/room/${l.id}">${H(locSub(l))}</a>${l.parent?` <span class="muted">(kept in ${H(locLabel(L(l.parent)))})</span>`:""}</td>
+          <td>${st.length ? H(st.slice(0,3).map(s=>s.name).join(", ")) + (st.length>3?` <span class="muted">and ${st.length-3} more</span>`:"") : '<span class="muted">Nobody based here</span>'}</td>
+          <td class="num">${eq}</td><td class="num">${ow ? `<b>${ow}</b>` : '<span class="muted">0</span>'}</td></tr>`; }).join("")}
+    </tbody></table></div>`;
+  }
+  main.innerHTML = html;
+}
+let editRoom = false;
+function renderRoom(id){
+  const l = L(id); if (!l){ main.innerHTML = `<div class="sheet"><div class="sec"><h2>That location doesn't exist</h2><p><a href="#/locations">All locations</a></p></div></div>`; return; }
+  const st = visibleStaff().filter(s => s.locs.includes(id));
+  const eq = activeAssets().filter(a => a.loc===id).sort(byClass);
+  const kids = Object.values(S.locs).filter(x => x.parent===id);
+  const ow = openWOs(w => w.loc===id);
+  main.innerHTML = `${banner()}
+    <div class="crumbs"><a href="#/locations">Locations</a> / ${H(locLabel(l))}</div>
+    <div class="ph"><div class="roomhead">${l.number?`<span class="plate big">${H(l.number)}</span>`:""}<div><h1>${H(locLabel(l))}</h1><div class="sub">${H(locSub(l))}, ${H(wingName(l.wing))}${l.parent?`. Kept in ${locLink(l.parent)}`:""}</div></div></div>
+      <div class="acts"><button class="btn quiet" data-act="editroom">${editRoom?"Cancel":"Edit room"}</button><a class="btn primary" href="#/new?loc=${id}">New work order here</a></div></div>
+    ${editRoom ? `<div class="sheet"><section class="sec"><h2>Edit room</h2><div class="form">
+      <div class="row"><label>Room number <span class="hint">Leave blank for named spaces like the gym</span><input id="r-number" value="${H(l.number)}"></label><label>Name<input id="r-name" value="${H(l.name)}"></label></div>
+      <div class="row"><label>Type<select id="r-type">${Object.entries(LOC_TYPES).map(([k,v])=>`<option value="${k}" ${l.type===k?"selected":""}>${v}</option>`).join("")}</select></label>
+      <label>Wing<select id="r-wing">${WINGS.map(([k,v])=>`<option value="${k}" ${l.wing===k?"selected":""}>${v}</option>`).join("")}</select></label></div>
+      <div class="err" id="r-err" role="alert"></div>
+      <div class="btns"><button class="btn primary" data-act="saveroom">Save room</button></div></div>
+      <p class="note">Work orders, staff and equipment stay linked after a renumber.</p></section></div>` : ""}
+    <div class="grid2"><div>
+      <div class="sheet">
+        <section class="sec"><h2>Open problems <span class="n">${ow.length}</span></h2>${ow.length?`<div class="wl inset noplate">${ow.sort(priSort).map(row).join("")}</div>`:`<p class="empty">No open work in this room.</p>`}</section>
+        <section class="sec"><h2>Equipment <span class="n">${eq.length}</span></h2>${eqTable(eq, ["staff"], "No equipment is recorded in this room.", true)}</section>
+        ${kids.length?`<section class="sec"><h2>Carts kept here</h2><ul class="lines">${kids.map(k=>`<li><a href="#/room/${k.id}">${H(k.name)}</a> <span class="muted">${activeAssets().filter(a=>a.loc===k.id).length} devices</span></li>`).join("")}</ul></section>`:""}
+      </div>
+    </div><aside>
+      <div class="sheet"><section class="sec"><h2>Who works here</h2>${st.length?`<ul class="people">${st.map(s=>`<li>${staffLink(s.id)}<span>${H(s.role)}</span></li>`).join("")}</ul>`:`<p class="empty">Nobody is based here.</p>`}</section>
+      <section class="sec"><h2>History</h2>${histFor(e => e.loc===id).length?histHTML(histFor(e => e.loc===id, 12)):`<p class="empty">No technician activity recorded here yet.</p>`}</section></div>
+    </aside></div>`;
+}
+
+/* ============ STAFF ============ */
+let SF = {q:"", group:""};
+function renderStaffList(){
+  const groups = [...new Set(visibleStaff().map(s=>s.group))].sort();
+  main.innerHTML = `${banner()}<div class="ph"><div><h1>Staff</h1><div class="sub">Who works where, what they use, and what's open for them. Names and titles come from the public directory; rooms and equipment are simulated.</div></div></div>
+    <div class="toolbar"><input type="search" class="field grow" id="sfq" placeholder="Filter by name, role or room" value="${H(SF.q)}" aria-label="Filter staff">
+      <select class="field" id="sfg" aria-label="Group"><option value="">All groups</option>${groups.map(g=>`<option ${SF.group===g?"selected":""}>${g}</option>`).join("")}</select></div>
+    <div id="stafftbl"></div>`;
+  renderStaffRows();
+}
+function renderStaffRows(){
+  const el = document.getElementById("stafftbl"); if (!el) return;
+  const q = SF.q.toLowerCase();
+  const list = visibleStaff().filter(s => (!SF.group || s.group===SF.group) && (!q || [s.name, s.role, ...s.locs.map(id=>locLabel(L(id)))].join(" ").toLowerCase().includes(q)));
+  el.innerHTML = list.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th>Name</th><th>Role</th><th>Room</th><th class="num">Equipment</th><th class="num">Open work</th></tr></thead><tbody>
+    ${list.map(s => { const dev = activeAssets().filter(a => a.staff===s.id).length; const ow = openWOs(w => w.by===s.id).length;
+      return `<tr><td>${staffLink(s.id)}</td><td>${H(s.role)}</td><td>${s.locs.length?s.locs.map(locLink).join(", "):'<span class="muted">No fixed location</span>'}${s.also?` <span class="muted">and other buildings</span>`:""}</td><td class="num">${dev}</td><td class="num">${ow?`<b>${ow}</b>`:'<span class="muted">0</span>'}</td></tr>`; }).join("")}
+  </tbody></table></div><p class="note">${list.length} people</p>` : `<p class="empty">No staff match "${H(SF.q)}".</p>`;
+}
+function renderStaff(id){
+  const s = S.staff[id]; if (!s){ main.innerHTML = `<div class="sheet"><div class="sec"><h2>That staff member isn't in the directory</h2><p><a href="#/staff">All staff</a></p></div></div>`; return; }
+  const eq = activeAssets().filter(a => a.staff===id).sort(byClass);
+  const ow = openWOs(w => w.by===id);
+  main.innerHTML = `${banner()}
+    <div class="crumbs"><a href="#/staff">Staff</a> / ${H(s.name)}</div>
+    <div class="ph"><div><h1>${H(s.name)}</h1><div class="sub">${H(s.role)}</div></div>
+      <div class="acts"><a class="btn primary" href="#/new?staff=${id}${s.locs[0]?`&loc=${s.locs[0]}`:""}">New work order for ${H(s.name.split(" ")[0])}</a></div></div>
+    <div class="facts"><dl><dt>Room</dt><dd>${s.locs[0]?locLink(s.locs[0]):"No fixed location"}</dd></dl><dl><dt>Group</dt><dd>${H(s.group)}</dd></dl>${s.also?`<dl><dt>Also works at</dt><dd>${H(s.also)}</dd></dl>`:""}</div>
+    <div class="grid2"><div>
+      <div class="sheet">
+        <section class="sec"><h2>Open work <span class="n">${ow.length}</span></h2>${ow.length?`<div class="wl inset">${ow.sort(priSort).map(row).join("")}</div>`:`<p class="empty">Nothing open for ${H(s.name.split(" ")[0])}.</p>`}</section>
+        <section class="sec"><h2>Equipment <span class="n">${eq.length}</span></h2>${s.group==="Temporary" ? `<p class="empty">No assigned equipment. Loaners go out through a work order.</p>` : eqTable(eq,["loc"],"No equipment assigned.")}</section>
+        <section class="sec"><h2>History</h2>${histHTML(histFor(e => e.staff===id, 12),"No technician activity recorded yet.")}</section>
+      </div>
+    </div><aside>
+      <div class="sheet"><section class="sec"><h2>Move to another room</h2><div class="form">
+        <label>New room<select id="st-loc"><option value="">No fixed location</option>${sortedLocs().filter(l=>l.type!=="cart"&&l.type!=="network").map(l=>`<option value="${l.id}" ${s.locs[0]===l.id?"selected":""}>${H(locLabel(l))}, ${H(locSub(l))}</option>`).join("")}</select></label>
+        <label class="tick"><input type="checkbox" id="st-move" checked> Move their equipment too</label>
+        <div class="btns"><button class="btn" data-act="savestaffloc">Save move</button></div></div></section></div>
+    </aside></div>`;
+}
+
+/* ============ EQUIPMENT ============ */
+let AF = {q:"", cls:"", status:"active"};
+function renderAssets(){
+  const filtered = AF.cls || AF.status!=="active";
+  main.innerHTML = `${banner()}<div class="ph"><div><h1>Equipment</h1><div class="sub">Every device has a tag, serial, location, assigned person, status and history. Serials and network details are simulated.</div></div>
+      <div class="acts"><a class="btn primary" href="#/receive">Receive equipment</a></div></div>
+    <div class="toolbar"><input type="search" class="field grow" id="afq" placeholder="Search by tag, serial, hostname, IP, MAC, model, room or person" value="${H(AF.q)}" aria-label="Search equipment"></div>
+    <details class="more filters" ${filtered?"open":""}><summary>More filters</summary><div class="toolbar inner">
+      <select class="field" id="afc" aria-label="Kind of equipment"><option value="">All kinds</option>${Object.entries(CLASSES).map(([k,v])=>`<option value="${k}" ${AF.cls===k?"selected":""}>${v}</option>`).join("")}</select>
+      <select class="field" id="afs" aria-label="Status"><option value="active" ${AF.status==="active"?"selected":""}>In use or in stock (hide retired)</option><option value="" ${AF.status===""?"selected":""}>Any status</option>${ASSET_STATUSES.map(s=>`<option ${AF.status===s?"selected":""}>${s}</option>`).join("")}</select></div></details>
+    <div id="assettbl"></div>`;
+  renderAssetRows();
+}
+function assetHay(a){ const n = a.net||{}, l = L(a.loc); return [a.id,a.type,a.model,a.serial,n.host,n.ip,n.mac,l&&l.number,l&&l.name,l&&locLabel(l),a.staff&&S.staff[a.staff].name].join(" ").toLowerCase(); }
+function renderAssetRows(){
+  const el = document.getElementById("assettbl"); if (!el) return;
+  const q = AF.q.toLowerCase().split(/\s+/).filter(Boolean);
+  const all = Object.values(S.assets);
+  const order = {}; sortedLocs().forEach((l,i) => order[l.id] = i);
+  const list = all.filter(a => (!AF.cls || a.cls===AF.cls) && (AF.status==="active" ? a.status!=="Retired" : (!AF.status || a.status===AF.status)) && q.every(t => assetHay(a).includes(t))).sort((a,b) => (order[a.loc]??999)-(order[b.loc]??999) || byClass(a,b));
+  const shown = list.slice(0,300);
+  el.innerHTML = list.length ? `${eqTable(shown, ["loc","staff"])}<p class="note">Showing ${shown.length} of ${list.length} matching devices (${all.length} records total).${list.length>300?" Search or filter to narrow the list.":""}</p>`
+    : `<p class="empty">No equipment matches your search. Try a tag like LEG-24161, a room number or a last name.</p>`;
+}
+let assetErr = "";
+function renderAsset(id){
+  const a = S.assets[id]; if (!a){ main.innerHTML = `<div class="sheet"><div class="sec"><h2>No equipment with tag ${H(id)}</h2><p><a href="#/assets">All equipment</a></p></div></div>`; return; }
+  const n = a.net || {}, path = a.path || buildPath(a);
+  const linked = Object.values(S.assets).filter(x => (x.conn===a.id || a.conn===x.id) && x.status!=="Retired");
+  const ow = openWOs(w => w.asset===id);
+  const retired = a.status==="Retired";
+  const dl = rows => `<dl class="kv">${rows.filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd${r[2]?' class="mono"':""}>${H(r[1])}</dd>`).join("")}</dl>`;
+  const net = [["Hostname",n.host,1],["IP address",n.ip?`${n.ip} (${n.mode})`:(n.mode||null),1],["MAC",n.mac,1],["VLAN",n.vlan],["Wall jack",n.jack,1],["Switch port",n.sw&&S.assets[n.sw]?`${S.assets[n.sw].net.host} ${n.port}`:null,1]];
+  const specs = (a.specs||"").split(",").map(x=>x.trim()).filter(Boolean);
+  main.innerHTML = `${banner()}
+    <div class="crumbs"><a href="#/assets">Equipment</a> / <span class="mono">${H(id)}</span></div>
+    <div class="ph"><div>${a.untagged?`<h1 class="tagtitle">${H(id)}</h1>`:`<div class="tagsticker"><small>Leggee Elementary Technology</small>${barcode(id)}<h1 class="tagtitle">${H(id)}</h1></div>`}<div class="sub">${H(a.model)}, ${H(a.type.toLowerCase())}${a.untagged?". Untagged item tracked by internal ID.":""}</div></div>
+      <div class="acts">${retired?"":`<a class="btn primary" href="#/new?asset=${H(id)}&loc=${a.loc}${a.staff?`&staff=${a.staff}`:""}">New work order for this device</a>`}</div></div>
+    <div class="facts"><dl><dt>Status</dt><dd>${aStat(a.status)}</dd></dl><dl><dt>Location</dt><dd>${locLink(a.loc)}</dd></dl><dl><dt>Assigned to</dt><dd>${a.staff?staffLink(a.staff):(L(a.loc)&&L(a.loc).type==="cart"?"Cart":"Room equipment")}</dd></dl><dl><dt>Serial</dt><dd class="mono">${H(a.serial)}</dd></dl>${a.warranty?`<dl><dt>Warranty</dt><dd>${H(a.warranty)}</dd></dl>`:""}</div>
+    ${deployHTML(a)}
+    <div class="grid2"><div>
+      <div class="sheet">
+        ${path?`<section class="sec"><h2>Connection</h2>${pathHTML(path, null, true, id)}</section>`:""}
+        ${linked.length?`<section class="sec"><h2>Connected devices</h2><ul class="lines">${linked.map(x=>`<li>${assetLink(x.id)} ${H(x.model)}</li>`).join("")}</ul></section>`:""}
+        ${specs.length||a.os?`<section class="sec"><h2>Hardware</h2><ul class="lines">${specs.map(x=>`<li>${H(x)}</li>`).join("")}${a.os?`<li>${H(a.os)}</li>`:""}</ul><p class="note">Parts like RAM and SSD are tracked here, not as separate inventory.</p></section>`:""}
+        ${a.software&&a.software.length?`<section class="sec"><h2>Software <span class="n">${H(a.profile||"")} profile</span></h2><ul class="lines">${a.software.map(s=>`<li>${H(s)}</li>`).join("")}</ul></section>`:""}
+        ${n.host||n.vlan?`<section class="sec"><h2>Network</h2>${dl(net)}</section>`:""}
+        <section class="sec"><h2>History</h2>${histHTML(histFor(e => e.assets.includes(id), 25),"No history recorded for this device yet.")}</section>
+        ${a.retired||a.note||a.purchased?`<section class="sec"><h2>Record details</h2>${dl([["Manufacturer",a.mfr],["Purchased",a.purchased],["Note",a.note],["Retired because",a.retired]])}</section>`:""}
+      </div>
+    </div><aside>
+      <div class="sheet"><section class="sec"><h2>Open work <span class="n">${ow.length}</span></h2>${ow.length?`<ul class="lines">${ow.map(w=>`<li><a href="#/wo/${w.id}">${H(w.title)}</a> ${priChip(w.pri)}</li>`).join("")}</ul>`:`<p class="empty">No open work on this device.</p>`}</section></div>
+      ${retired?"":`<div class="sheet"><section class="sec"><h2>Move or reassign</h2><div class="form">
+        <label>Room<select id="mv-loc">${sortedLocs().map(l=>`<option value="${l.id}" ${a.loc===l.id?"selected":""}>${H(locLabel(l))}, ${H(locSub(l))}</option>`).join("")}</select></label>
+        <label>Assigned to<select id="mv-staff"><option value="">Room equipment (no person)</option>${visibleStaff().map(s=>`<option value="${s.id}" ${a.staff===s.id?"selected":""}>${H(s.name)}, ${H(s.role)}</option>`).join("")}</select></label>
+        <div class="btns"><button class="btn" data-act="move">Save move</button></div></div></section>
+      <section class="sec"><details class="more" ${assetErr?"open":""}><summary>Retire equipment</summary><div class="form nested">
+        <label>Reason<select id="rt-reason">${RETIRE_REASONS.map(r=>`<option>${r}</option>`).join("")}</select></label>
+        <label>What happened <span class="hint">Required</span><input id="rt-note" placeholder="Example: motherboard failed, out of warranty"></label>
+        ${assetErr?`<div class="err" role="alert">${H(assetErr)}</div>`:""}
+        <div class="btns"><button class="btn danger" data-act="retire">Retire equipment</button></div>
+        <p class="note">Clears the assignment and moves it to Tech Storage. History is kept.</p></div></details></section></div>`}
+    </aside></div>`;
+  assetErr = "";
+}
+
+/* ============ NEW WORK ORDER ============ */
+let nwErr = "";
+function renderNew(){
+  const p = qs(), loc = p.get("loc") || "", asset = p.get("asset") || "", by = p.get("staff") || "";
+  main.innerHTML = `${banner()}<div class="crumbs"><a href="#/queue">Work queue</a> / New work order</div>
+    <div class="ph"><div><h1>New work order</h1><div class="sub">This will be <span class="mono">WO-${S.next.wo}</span>. Details fill in from the room, person or device you started from.</div></div></div>
+    <div class="sheet narrow"><section class="sec"><div class="form">
+      <fieldset><legend>What's wrong</legend>
+        <label>Short title<input id="nw-title" placeholder="Example: Projector shows no signal"></label>
+        <label>What the staff member reported<textarea id="nw-report" placeholder="Their words, as close as you can get them"></textarea></label></fieldset>
+      <fieldset><legend>Where and who</legend>
+        <div class="row3"><label>Room<select id="nw-loc"><option value="">Choose a room</option>${sortedLocs().map(l=>`<option value="${l.id}" ${loc===l.id?"selected":""}>${H(locLabel(l))}, ${H(locSub(l))}</option>`).join("")}</select></label>
+        <label>Reported by<select id="nw-by">${staffOptions(loc, by)}</select></label>
+        <label>Device <span class="hint">if known</span><select id="nw-asset">${assetOptions(loc, asset)}</select></label></div></fieldset>
+      <fieldset><legend>How urgent</legend>
+        <div class="row3"><label>Priority<select id="nw-pri"><option>High</option><option selected>Medium</option><option>Low</option></select></label>
+        <label>Category<select id="nw-cat">${Object.keys(TEMPLATES).map(c=>`<option>${c}</option>`).join("")}</select></label>
+        <label>Type<select id="nw-type"><option value="Incident">Problem</option><option value="Request">Request</option></select></label></div>
+        <p class="note flush">High: teaching or a key office is stopped with no workaround, or something is needed today. Medium: works poorly, or a workaround is in place. Low: requests and scheduled work.</p></fieldset>
+      ${nwErr?`<div class="err" role="alert">${H(nwErr)}</div>`:""}
+      <div class="btns"><a class="btn quiet" href="#/queue">Cancel</a><button class="btn primary" data-act="createwo">Create work order</button></div>
+    </div></section></div>`;
+  nwErr = "";
+}
+function staffOptions(loc, sel){
+  const here = loc ? visibleStaff().filter(s => s.locs.includes(loc)) : [];
+  const rest = visibleStaff().filter(s => !here.includes(s));
+  const opt = s => `<option value="${s.id}" ${sel===s.id?"selected":""}>${H(s.name)}, ${H(s.role)}</option>`;
+  return `<option value="tech" ${sel==="tech"?"selected":""}>Me (technician)</option>${here.length?`<optgroup label="Works in this room">${here.map(opt).join("")}</optgroup>`:""}<optgroup label="Everyone">${rest.map(opt).join("")}</optgroup>`;
+}
+function assetOptions(loc, sel){
+  const list = activeAssets().filter(a => a.loc===loc || a.id===sel).sort(byClass);
+  return `<option value="">No specific device</option>${list.map(a=>`<option value="${H(a.id)}" ${sel===a.id?"selected":""}>${H(a.id)}, ${H(a.model)}${a.staff?` (${H(S.staff[a.staff].name)})`:""}</option>`).join("")}`;
+}
+
+/* ============ RECEIVE AND SET UP EQUIPMENT ============ */
+let RC = {type:"Laptop"};
+function fmtDate(d){ return d.toLocaleDateString([], {month:"short",day:"numeric",year:"numeric"}); }
+function renderReceive(){
+  const wo = qs().get("wo") || "", W = S.wos[wo], d = RECEIVE_TYPES[RC.type];
+  const now = new Date(), warr = new Date(now); warr.setFullYear(warr.getFullYear()+3);
+  const pipeline = Object.values(S.assets).filter(a => ["Received","Configuring"].includes(a.status) || (a.status==="In Stock" && a.deploy && a.deploy.wo)).sort((a,b)=>(b.received||0)-(a.received||0));
+  main.innerHTML = `${banner()}<div class="crumbs"><a href="#/assets">Equipment</a> / ${W?`<a href="#/wo/${wo}">${wo}</a> / `:""}Receive equipment</div>
+    <div class="ph"><div><h1>Receive equipment</h1><div class="sub">Record a new device. It goes to Tech Storage (Room 107) with tag <span class="mono">LEG-${S.next.tag}</span>, then you set it up from its equipment page.</div></div></div>
+    <ol class="seq" aria-label="Steps for new equipment"><li><b>1</b>Record it</li><li><b>2</b>Tag it</li><li><b>3</b>Check the serial</li><li><b>4</b>Install software</li><li><b>5</b>Connect to the network</li><li><b>6</b>Assign it</li><li><b>7</b>Install and deploy</li></ol>
+    <div class="grid2"><div>
+    <div class="sheet"><section class="sec"><div class="form">
+      ${W?`<p class="flash flush">Receiving for <a class="mono" href="#/wo/${wo}">${wo}</a>: ${H(W.title)}</p>`:""}
+      <input type="hidden" id="rc-wo" value="${H(wo)}">
+      <div class="row"><label>Kind of device<select id="rc-type">${Object.keys(RECEIVE_TYPES).map(t=>`<option ${RC.type===t?"selected":""}>${t}</option>`).join("")}</select></label>
+        <label>Serial number <span class="hint">from the device label</span><input id="rc-serial" class="mono" autocomplete="off" placeholder="Example: 7HQK2X3"></label></div>
+      <div class="row"><label>Manufacturer<input id="rc-mfr" value="${H(d.mfr)}"></label><label>Model<input id="rc-model" value="${H(d.model)}"></label></div>
+      <details class="more"><summary>Specs, dates and notes</summary><div class="form nested">
+        <label>Specs <span class="hint">CPU, RAM, storage</span><input id="rc-specs" value="${H(d.specs||"")}"></label>
+        <div class="row"><label>Purchased<input id="rc-purchased" value="${H(now.toLocaleDateString([], {month:"short",year:"numeric"}))}"></label><label>Warranty ends<input id="rc-warranty" value="${H(fmtDate(warr))}"></label></div>
+        <label>Note <span class="hint">PO number, delivery details</span><input id="rc-note"></label></div></details>
+      <div class="err" id="rc-err" role="alert"></div>
+      <div class="btns"><button class="btn primary" data-act="receive">Receive and tag</button></div>
+    </div></section></div></div><aside>
+    <div class="sheet"><section class="sec"><h2>Waiting for setup <span class="n">${pipeline.length}</span></h2>
+      ${pipeline.length?`<ul class="lines">${pipeline.map(a=>`<li>${assetLink(a.id)} ${H(a.model)} ${aStat(a.status)}</li>`).join("")}</ul>`:`<p class="empty">Nothing is waiting for setup.</p>`}</section></div>
+    </aside></div>`;
+}
+function receiveSubmit(){
+  const g = id => (document.getElementById(id).value || "").trim();
+  const err = document.getElementById("rc-err");
+  const type = g("rc-type"), serial = g("rc-serial").toUpperCase(), model = g("rc-model");
+  if (!serial || !model){ err.textContent = "Enter the model and the serial number from the device label."; return; }
+  const dup = Object.values(S.assets).find(a => a.serial && a.serial.toUpperCase()===serial);
+  if (dup){ err.innerHTML = `That serial number is already assigned to another device (${assetLink(dup.id)}). Check the label and try again.`; return; }
+  const d = RECEIVE_TYPES[type], id = `LEG-${S.next.tag++}`, wo = g("rc-wo") || null;
+  S.assets[id] = {id, cls:d.cls, type, mfr:g("rc-mfr"), model, serial, status:"Received", loc:"107", staff:null, specs:g("rc-specs")||null,
+    purchased:g("rc-purchased"), warranty:g("rc-warranty"), note:g("rc-note")||null, received:Date.now(), deploy:{wo, done:{}}};
+  logEv(`Received and tagged ${id} (${model}), serial ${serial}`, {assets:[id], loc:"107", wo, staff:wo&&S.wos[wo]?S.wos[wo].by:null});
+  save(); flash(`Received and tagged ${id}. Next: check the serial and put the tag label on.`); location.hash = `#/asset/${id}`;
+}
+function deploySteps(a){ const s = ["verify"]; if (a.cls==="computer") s.push("configure"); if (a.cls==="computer" || a.cls==="printer") s.push("network"); s.push("assign","install"); return s; }
+function ensureDeploy(a){
+  if (!a.deploy){ a.deploy = {wo:null, done:{}};
+    if (a.status!=="Received"){ a.deploy.done.verify = "seed"; if (a.profile) a.deploy.done.configure = "seed"; if (a.net && a.net.host) a.deploy.done.network = "seed"; } }
+  return a.deploy;
+}
+function deployWO(a){ if (a.deploy && a.deploy.wo) return a.deploy.wo; const w = Object.values(S.wos).find(x => x.asset===a.id && x.status!=="Closed"); return w ? w.id : null; }
+function suggestHost(a){ const p = a.type==="Laptop"?"LT":a.type==="Chromebook"?"CB":a.type==="Desktop"?"PC":a.cls==="printer"?"PRN":"DV"; return `LEG-${p}${a.id.replace("LEG-","")}`; }
+function connOptions(loc, a, sel){
+  const list = activeAssets().filter(x => x.loc===loc && x.id!==a.id && ["Laptop","Desktop","USB-C hub"].includes(x.type));
+  return `<option value="">Not connected to another device</option>${list.map(x=>`<option value="${H(x.id)}" ${sel===x.id?"selected":""}>${H(x.id)}, ${H(x.model)}${x.staff?` (${H(S.staff[x.staff].name)})`:""}</option>`).join("")}`;
+}
+function stepForm(a, s){
+  const err = `<div class="err" id="dp-err" role="alert"></div>`;
+  if (s==="verify") return `<div class="form">
+    <label>Serial number on the device label<input id="dp-serial" class="mono" autocomplete="off"></label>
+    <label class="tick"><input type="checkbox" id="dp-tag"> Tag label <span class="mono">${H(a.id)}</span> is on the device</label>
+    ${err}<div class="btns"><button class="btn primary" data-act="dp-verify">Confirm serial and tag</button></div></div>`;
+  if (s==="configure"){ const d = RECEIVE_TYPES[a.type] || {}; const prof = a.profile || d.profile || "Staff Laptop";
+    return `<div class="form"><div class="row">
+      <label>Software profile<select id="dp-profile">${Object.keys(PROFILES).map(p=>`<option ${p===prof?"selected":""}>${p}</option>`).join("")}</select></label>
+      <label>Operating system<input id="dp-os" value="${H(a.os || d.os || "Windows 11 Pro 24H2")}"></label></div>
+      <p class="note flush">Records the profile's apps on this device.</p>
+      ${err}<div class="btns"><button class="btn primary" data-act="dp-configure">Software installed</button></div></div>`; }
+  if (s==="network"){ const cb = a.type==="Chromebook", pr = a.cls==="printer", n = a.net || {};
+    const mode = n.mode || (cb ? "Wi-Fi DHCP" : pr ? "DHCP reservation" : "DHCP"), vlan = n.vlan || (cb ? VLANS[2] : pr ? VLANS[3] : VLANS[1]);
+    const sws = Object.values(S.assets).filter(x => x.type==="Switch");
+    return `<div class="form">
+      <div class="row"><label>Hostname<input id="dp-host" class="mono" value="${H(n.host || suggestHost(a))}"></label>
+        <label>MAC address<input id="dp-mac" class="mono" value="${H(n.mac||"")}" placeholder="F8:B4:6A:00:00:00"></label></div>
+      <div class="row3"><label>IP setting<select id="dp-mode">${IP_MODES.map(m=>`<option ${m===mode?"selected":""}>${m}</option>`).join("")}</select></label>
+        <label>IP address <span class="hint">blank for DHCP</span><input id="dp-ip" class="mono" value="${H(n.ip||"")}"></label>
+        <label>VLAN<select id="dp-vlan">${VLANS.map(v=>`<option ${v===vlan?"selected":""}>${v}</option>`).join("")}</select></label></div>
+      <div class="row3"><label>Wall jack<input id="dp-jack" class="mono" value="${H(n.jack||"")}" placeholder="${cb?"Not needed on Wi-Fi":"Example: 152-B"}"></label>
+        <label>Switch<select id="dp-sw"><option value="">None (Wi-Fi)</option>${sws.map(x=>`<option value="${x.id}" ${n.sw===x.id?"selected":""}>${H(x.net.host)}</option>`).join("")}</select></label>
+        <label>Switch port<input id="dp-port" class="mono" value="${H(n.port||"")}" placeholder="Gi1/0/22"></label></div>
+      ${err}<div class="btns"><button class="btn primary" data-act="dp-network">Save network details</button></div></div>`; }
+  if (s==="assign"){ const w = S.wos[deployWO(a)]; const loc = (a.loc && a.loc!=="107") ? a.loc : (w && w.loc!=="107" ? w.loc : "");
+    const by = a.staff || (w && w.by!=="tech" && a.type!=="Chromebook" ? w.by : "");
+    return `<div class="form">
+      <div class="row"><label>Room<select id="dp-loc"><option value="">Choose a room</option>${sortedLocs().map(l=>`<option value="${l.id}" ${loc===l.id?"selected":""}>${H(locLabel(l))}, ${H(locSub(l))}</option>`).join("")}</select></label>
+      <label>Assigned to<select id="dp-staff"><option value="">Room or cart equipment (no person)</option>${visibleStaff().map(s=>`<option value="${s.id}" ${by===s.id?"selected":""}>${H(s.name)}, ${H(s.role)}</option>`).join("")}</select></label></div>
+      <label>Connects to <span class="hint">for monitors and hubs</span><select id="dp-conn">${connOptions(loc, a, a.conn)}</select></label>
+      ${err}<div class="btns"><button class="btn primary" data-act="dp-assign">Save assignment</button></div></div>`; }
+  if (s==="install"){ const checks = INSTALL_CHECKS[a.type] || INSTALL_CHECKS[a.cls] || INSTALL_CHECKS.default;
+    return `<div class="form">${checks.map(c=>`<label class="tick"><input type="checkbox" class="dp-chk"> ${H(c)}</label>`).join("")}
+      ${err}<div class="btns"><button class="btn primary" data-act="dp-deploy">Mark deployed</button></div></div>`; }
+  return "";
+}
+function deployHTML(a){
+  const pending = ["Received","In Stock","Configuring"].includes(a.status);
+  if (!pending) return "";
+  const dp = ensureDeploy(a), steps = deploySteps(a), cur = steps.find(s => !dp.done[s]), wo = deployWO(a);
+  return `<div class="sheet"><section class="sec"><h2>Equipment setup <span class="n">${steps.filter(s=>dp.done[s]).length} of ${steps.length} done${wo?`, for <a class="mono" href="#/wo/${wo}">${wo}</a>`:""}</span></h2>
+    <ol class="setup">${steps.map((s,i)=>`<li class="${dp.done[s]?"done":s===cur?"now":""}"><span class="num">${dp.done[s]?"✓":i+1}</span><div><b>${STEP_LABEL[s]}</b>
+      ${dp.done[s]?` <span class="when">${dp.done[s]==="seed"?"already done":H(when(dp.done[s]))}</span>`:""}${s===cur?stepForm(a,s):""}</div></li>`).join("")}</ol></section></div>`;
+}
+function dpDone(a, step, summary, msg, fn){
+  fn(); a.deploy.done[step] = Date.now();
+  logEv(summary, {assets:[a.id, ...(a.conn?[a.conn]:[])], loc:a.loc, staff:a.staff, wo:deployWO(a)});
+  save(); flash(msg); route();
+}
+function deployAction(act, a){
+  const g = id => (document.getElementById(id).value || "").trim(), err = document.getElementById("dp-err");
+  ensureDeploy(a);
+  if (act==="dp-verify"){
+    if (g("dp-serial").toUpperCase() !== String(a.serial).toUpperCase()){ err.textContent = "The serial number does not match this equipment record. Check the label on the device."; return; }
+    if (!document.getElementById("dp-tag").checked){ err.textContent = `Put the ${a.id} tag label on the device, then tick the box.`; return; }
+    dpDone(a, "verify", `Verified serial ${a.serial} and applied tag label ${a.id}`, "Serial checked and tag applied.", () => { a.status = "In Stock"; });
+  }
+  if (act==="dp-configure"){
+    const p = g("dp-profile"), os = g("dp-os");
+    dpDone(a, "configure", `Applied ${p} profile (${os}): ${PROFILES[p].length} apps`, `${p} software recorded.`, () => { a.profile = p; a.os = os; a.software = PROFILES[p].slice(); a.status = "Configuring"; });
+  }
+  if (act==="dp-network"){
+    const host = g("dp-host").toUpperCase(), mac = g("dp-mac").toUpperCase(), mode = g("dp-mode"), jack = g("dp-jack").toUpperCase(), sw = g("dp-sw"), port = g("dp-port");
+    if (!host){ err.textContent = "Enter a hostname for this device."; return; }
+    if (mac && !/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/.test(mac)){ err.textContent = "That MAC address isn't in the right format. Use six pairs separated by colons, like F8:B4:6A:12:34:56."; return; }
+    if (mode!=="Wi-Fi DHCP" && (!jack || !sw || !port)){ err.textContent = "A wired device needs a wall jack, a switch and a switch port."; return; }
+    const pn = (port.match(/(\d+)$/)||[])[1];
+    const swHost = sw && S.assets[sw] ? S.assets[sw].net.host : "";
+    dpDone(a, "network", `Network recorded: ${host}, VLAN ${g("dp-vlan")}${jack?`, jack ${jack} to ${swHost} ${port}`:", Wi-Fi"}`, "Network details saved.", () => {
+      a.net = {host, mac:mac||null, mode, ip:g("dp-ip")||null, vlan:g("dp-vlan"), jack:jack||null, sw:sw||null, port:port||null, patch:pn?`PP${Math.ceil(pn/24)}-${pn}`:null};
+      if (a.status==="Received") a.status = "In Stock"; });
+  }
+  if (act==="dp-assign"){
+    const loc = g("dp-loc"), st = g("dp-staff") || null, conn = g("dp-conn") || null;
+    if (!loc){ err.textContent = "Choose the room this device is going to."; return; }
+    dpDone(a, "assign", `Assigned ${a.id} to ${st?S.staff[st].name+", ":""}${locLabel(L(loc))}${conn?`, connected to ${conn}`:""}`, `Assigned to ${st?S.staff[st].name+", ":""}${locLabel(L(loc))}.`, () => { a.loc = loc; a.staff = st; a.conn = conn; });
+  }
+  if (act==="dp-deploy"){
+    const boxes = [...document.querySelectorAll(".dp-chk")];
+    if (!boxes.every(b => b.checked)){ err.textContent = "Check each item with the user before marking the device deployed."; return; }
+    dpDone(a, "install", `Deployed ${a.id} (${a.model}) to ${a.staff?S.staff[a.staff].name+", ":""}${locLabel(L(a.loc))}`, `Device deployed to ${locLabel(L(a.loc))}.`, () => { a.status = "Deployed"; });
+  }
+}
+function deployOrderHTML(w){
+  if (w.cat!=="Deployment" || w.status==="Closed") return "";
+  if (w.asset){ const a = S.assets[w.asset]; return a && a.status!=="Deployed" ? `<section class="sec"><h2>Set up the equipment</h2><p class="flush">Open ${assetLink(a.id)} to run its setup checklist. Each step is recorded here too.</p></section>` : ""; }
+  const got = Object.values(S.assets).filter(a => a.deploy && a.deploy.wo===w.id);
+  return `<section class="sec"><h2>Equipment received <span class="n">${got.length}</span></h2>
+    ${got.length?eqTable(got,["loc"]):`<p class="empty">Nothing received for this order yet.</p>`}
+    <div class="inline"><a class="btn" href="#/receive?wo=${w.id}">Receive equipment for this order</a></div></section>`;
+}
+
+/* ============ REPAIR (inside a work order) ============ */
+function repairHTML(w, a){
+  if (w.status!=="In Progress" || !a || a.status==="Retired") return "";
+  const stock = Object.values(S.assets).filter(x => x.status==="In Stock" && x.type===a.type && x.id!==a.id);
+  const swap = stock.length ? `<details class="more" open><summary>Swap equipment</summary><div class="form nested"><div class="row">
+      <label>Replacement from Tech Storage<select id="sw-new">${stock.map(x=>`<option value="${H(x.id)}">${H(x.id)}, ${H(x.model)}${x.note?` (${H(x.note)})`:""}</option>`).join("")}</select></label>
+      <label>Old ${H(a.type.toLowerCase())} goes to<select id="sw-old"><option value="In Repair">Repair (keep it)</option><option value="Retired">Retired (dispose)</option></select></label></div>
+      <div class="err" id="sw-err" role="alert"></div>
+      <div class="btns"><button class="btn" data-act="swap">Swap ${H(a.id)} for the replacement</button></div>
+      <p class="note flush">The replacement takes over the room, person and connections. Both devices record the swap.</p></div></details>`
+    : `<p class="empty">No spare ${H(a.type.toLowerCase())} in Tech Storage. <a href="#/receive">Receive one</a> to swap it.</p>`;
+  const part = a.cls==="computer" ? `<details class="more"><summary>Replace a part</summary><div class="form nested"><div class="row3">
+      <label>Part<select id="pt-comp">${PARTS.map(p=>`<option>${p}</option>`).join("")}</select></label>
+      <label>Old<input id="pt-old" placeholder="Example: 8 GB"></label>
+      <label>New<input id="pt-new" placeholder="Example: 16 GB"></label></div>
+      <div class="err" id="pt-err" role="alert"></div>
+      <div class="btns"><button class="btn" data-act="part">Record part replacement</button></div>
+      <p class="note flush">RAM, SSD and processor changes update the device's hardware list.</p></div></details>` : "";
+  return `<section class="sec"><h2>Repair <span class="hint">Swap the device or replace a part</span></h2>${swap}${part}</section>`;
+}
+function swapAction(w){
+  const old = S.assets[w.asset], nw = S.assets[val("sw-new")], to = val("sw-old");
+  if (!nw){ document.getElementById("sw-err").textContent = "Choose a replacement from Tech Storage."; return; }
+  nw.loc = old.loc; nw.staff = old.staff; nw.conn = old.conn || null;
+  Object.values(S.assets).forEach(x => { if (x.conn===old.id) x.conn = nw.id; });
+  if (old.net && old.net.jack && nw.net){ ["jack","patch","sw","port"].forEach(k => { nw.net[k] = old.net[k]; old.net[k] = null; }); }
+  nw.status = "Deployed"; nw.deploy = Object.assign(nw.deploy || {done:{}}, {wo:w.id}); nw.deploy.done.install = Date.now();
+  old.status = to; old.staff = null; old.loc = "107"; old.conn = null; if (to==="Retired") old.retired = `Replaced under ${w.id}`;
+  w.replacedWith = nw.id;
+  w.actions = (w.actions ? w.actions.trim()+"\n" : "") + `Swapped in ${nw.id} from stock. ${old.id} set to ${to}.`;
+  logEv(`Swapped ${old.id} for ${nw.id} (${nw.model}); ${old.id} set to ${to}`, {wo:w.id, assets:[old.id, nw.id], loc:w.loc, staff:w.by});
+  save(); flash(`Replacement ${nw.id} assigned to ${locLabel(L(nw.loc))}. ${old.id} moved to Tech Storage as ${to==="Retired"?"retired":"in repair"}.`); route();
+}
+function partAction(w){
+  const a = S.assets[w.asset], comp = val("pt-comp"), oldv = val("pt-old").trim(), newv = val("pt-new").trim();
+  if (!newv){ document.getElementById("pt-err").textContent = "Describe the new part, like 16 GB."; return; }
+  if (a.specs && /GB|TB/i.test(newv)){
+    if (comp==="RAM") a.specs = a.specs.replace(/[\d.]+\s?(GB|TB) RAM/i, `${newv.replace(/\s*RAM$/i,"")} RAM`);
+    if (comp==="SSD") a.specs = a.specs.replace(/[\d.]+\s?(GB|TB) (SSD|eMMC)/i, `${newv.replace(/\s*SSD$/i,"")} SSD`);
+  }
+  if (a.specs && comp==="Processor (CPU)"){ const parts = a.specs.split(","); parts[0] = newv; a.specs = parts.map(x=>x.trim()).join(", "); }
+  w.actions = (w.actions ? w.actions.trim()+"\n" : "") + `Replaced ${comp}: ${oldv||"old part"} to ${newv}.`;
+  logEv(`Part replaced on ${a.id}: ${comp} from ${oldv||"old part"} to ${newv}`, {wo:w.id, assets:[a.id], loc:w.loc, staff:w.by});
+  save(); flash(`${comp} replacement recorded on ${a.id}.`); route();
+}
+
+/* ============ SEARCH ============ */
+function renderSearch(){
+  const q = decodeURIComponent((location.hash.split("/")[2]||"")).trim();
+  const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const hit = s => terms.length && terms.every(t => s.toLowerCase().includes(t));
+  const wos = Object.values(S.wos).filter(w => hit([w.id,w.title,S.staff[w.by].name,locLabel(L(w.loc)),w.asset||""].join(" ")));
+  const locs = sortedLocs().filter(l => hit([locLabel(l),l.name,l.number].join(" ")));
+  const staff = visibleStaff().filter(s => hit([s.name,s.role].join(" ")));
+  const assets = Object.values(S.assets).filter(a => hit(assetHay(a))).sort(byClass);
+  const total = wos.length+locs.length+staff.length+assets.length;
+  main.innerHTML = `${banner()}<div class="ph"><div><h1>Search</h1><div class="sub">Find a tag, serial, hostname, IP, person, room or work order.</div></div></div>
+    <div class="toolbar"><input type="search" class="field grow" id="sq" value="${H(q)}" placeholder="Example: LEG-24161, Bessey, 161 or 10.58.21.61" aria-label="Search everything" autofocus><button class="btn primary" data-act="search">Search</button></div>
+    ${!q?`<p class="empty">Type a tag, serial, hostname, IP address, name, room number or work order number, then press Enter.</p>`:total?`<p class="note count">${total} ${total===1?"result":"results"} for "${H(q)}"</p>
+    ${wos.length?`<h2 class="grouphead">Work orders <span class="n">${wos.length}</span></h2><div class="wl">${wos.sort(priSort).map(row).join("")}</div>`:""}
+    ${locs.length?`<h2 class="grouphead">Locations <span class="n">${locs.length}</span></h2><div class="sheet"><section class="sec"><ul class="lines">${locs.map(l=>`<li>${plate(l.id)} <a href="#/room/${l.id}">${H(locSub(l))}</a></li>`).join("")}</ul></section></div>`:""}
+    ${staff.length?`<h2 class="grouphead">Staff <span class="n">${staff.length}</span></h2><div class="sheet"><section class="sec"><ul class="people">${staff.map(s=>`<li>${staffLink(s.id)}<span>${H(s.role)}${s.locs[0]?`, ${H(locLabel(L(s.locs[0])))}`:""}</span></li>`).join("")}</ul></section></div>`:""}
+    ${assets.length?`<h2 class="grouphead">Equipment <span class="n">${assets.length}</span></h2>${eqTable(assets.slice(0,100),["loc","staff"])}`:""}`
+    :`<p class="empty">Nothing matches "${H(q)}". Try a room number, a last name, a tag like LEG-24161, a serial, a hostname or an IP address.</p>`}`;
+}
+
+/* ============ MESSAGES ============ */
+function banner(){
+  let out = "";
+  if (!storageOK) out += `<div class="flash warn" role="status">Changes won't be saved in this browser. Everything still works until you close the tab.</div>`;
+  if (notice){ out += `<div class="flash warn" role="status">${H(notice)}</div>`; notice = ""; }
+  if (flashMsg){ out += `<div class="flash${flashWarn?" warn":""}" role="status">${H(flashMsg)}</div>`; flashMsg = ""; }
+  return out;
+}
+
+function renderNotFound(){
+  main.innerHTML = `${banner()}<div class="sheet narrow"><section class="sec"><h2>That page doesn't exist</h2>
+    <p class="flush">The address <span class="mono">${H(location.hash)}</span> doesn't match a work order, room, person or device.</p>
+    <div class="inline"><a class="btn primary" href="#/queue">Go to the work queue</a><a class="btn" href="#/search">Search instead</a></div></section></div>`;
+}
+
+/* ============ ROUTER ============ */
+const main = document.getElementById("main");
+function route(){
+  const h = location.hash || "#/queue";
+  let m;
+  if ((m = h.match(/^#\/wo\/([A-Z]+-\d+)/))) renderWO(m[1]);
+  else if ((m = h.match(/^#\/room\/([^/?]+)/))) renderRoom(decodeURIComponent(m[1]));
+  else if ((m = h.match(/^#\/staff\/([^/?]+)/))) renderStaff(decodeURIComponent(m[1]));
+  else if ((m = h.match(/^#\/asset\/([^/?]+)/))) renderAsset(decodeURIComponent(m[1]));
+  else if (h.startsWith("#/locations")) renderLocations();
+  else if (h.startsWith("#/staff")) renderStaffList();
+  else if (h.startsWith("#/assets")) renderAssets();
+  else if (h.startsWith("#/new")) renderNew();
+  else if (h.startsWith("#/search")) renderSearch();
+  else if (h.startsWith("#/receive")) renderReceive();
+  else if (h==="#/queue" || h.startsWith("#/queue?") || h==="#/" || h==="#") renderQueue();
+  else renderNotFound();
+  renderNav();
+  document.title = (main.querySelector("h1")?.textContent || "Work queue") + " | Leggee Tech Ops";
+}
+window.addEventListener("hashchange", () => { editRoom = false; route(); window.scrollTo(0,0); });
+
+/* ============ ACTIONS ============ */
+const currentWO = () => { const m = (location.hash||"").match(/^#\/wo\/([A-Z]+-\d+)/); return m ? S.wos[m[1]] : null; };
+const currentId = re => { const m = (location.hash||"").match(re); return m ? decodeURIComponent(m[1]) : null; };
+const val = id => (document.getElementById(id)||{}).value;
+main.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const a = b.dataset.act;
+  if (a==="tab"){ Q.tab = b.dataset.v; renderQueue(); return; }
+  if (a==="group"){ S.ui.group = b.dataset.v; save(); renderQueue(); return; }
+  if (a==="search"){ const q = val("sq").trim(); location.hash = q ? `#/search/${encodeURIComponent(q)}` : "#/search"; return; }
+  if (a==="editroom"){ editRoom = !editRoom; route(); return; }
+  if (a==="saveroom"){
+    const id = currentId(/^#\/room\/([^/?]+)/), l = L(id), before = locLabel(l);
+    const number = val("r-number").trim(), name = val("r-name").trim();
+    if (!name){ document.getElementById("r-err").textContent = "Give the room a name, like 5th grade classroom."; return; }
+    commit(`Room details changed: ${before} is now ${number?`Room ${number}`:name} (${name})`, {loc:id}, () => { Object.assign(l, {number, name, type:val("r-type"), wing:val("r-wing")}); editRoom = false; flash(`Room saved as ${number?`Room ${number}`:name}. Everything in it stays linked.`); });
+    return;
+  }
+  if (a==="savestaffloc"){
+    const id = currentId(/^#\/staff\/([^/?]+)/), s = S.staff[id], to = val("st-loc"), from = s.locs[0]||"";
+    if (to===from){ flash(`${s.name} is already in ${locLabel(L(from))}.`, true); route(); return; }
+    const moveEq = document.getElementById("st-move").checked;
+    const moved = moveEq ? activeAssets().filter(x => x.staff===id && x.loc===from) : [];
+    commit(`${s.name} moved from ${locLabel(L(from))} to ${locLabel(L(to))}${moved.length?` with ${moved.length} assigned items`:""}`, {staff:id, loc:to||from, assets:moved.map(x=>x.id)}, () => {
+      s.locs = to ? [to, ...s.locs.slice(1).filter(x=>x!==to)] : []; moved.forEach(x => x.loc = to || "107"); flash(`${s.name} moved to ${locLabel(L(to))}${moved.length?` with ${moved.length} pieces of equipment`:""}.`); });
+    return;
+  }
+  if (a==="move"){
+    const id = currentId(/^#\/asset\/([^/?]+)/), x = S.assets[id], loc = val("mv-loc"), st = val("mv-staff") || null;
+    if (loc===x.loc && st===(x.staff||null)){ flash("Nothing changed. Pick a different room or person.", true); route(); return; }
+    const parts = [];
+    if (loc!==x.loc) parts.push(`moved from ${locLabel(L(x.loc))} to ${locLabel(L(loc))}`);
+    if (st!==(x.staff||null)) parts.push(`reassigned from ${x.staff?S.staff[x.staff].name:"room equipment"} to ${st?S.staff[st].name:"room equipment"}`);
+    commit(`${id} ${parts.join(" and ")}`, {assets:[id], loc, staff:st||x.staff}, () => { x.loc = loc; x.staff = st; flash(`${id} ${parts.join(" and ")}.`); });
+    return;
+  }
+  if (a==="retire"){
+    const id = currentId(/^#\/asset\/([^/?]+)/), x = S.assets[id], reason = val("rt-reason"), note = val("rt-note").trim();
+    if (!note){ assetErr = "Write what happened before retiring this equipment."; route(); return; }
+    commit(`Retired ${id}: ${reason}. ${note}`, {assets:[id], loc:x.loc, staff:x.staff}, () => { x.status = "Retired"; x.retired = `${reason}. ${note}`; x.staff = null; x.loc = "107"; flash(`${id} retired and moved to Tech Storage. Its history is kept.`); });
+    return;
+  }
+  if (a==="createwo"){
+    const title = val("nw-title").trim(), loc = val("nw-loc"), report = val("nw-report").trim();
+    if (!title || !loc || !report){ nwErr = `Add ${[!title&&"a title",!loc&&"a room",!report&&"what was reported"].filter(Boolean).join(", ")} before creating the work order.`; const keep = {title, report, loc, pri:val("nw-pri"), cat:val("nw-cat"), type:val("nw-type"), by:val("nw-by"), asset:val("nw-asset")};
+      renderNew(); ["title","report","pri","cat","type"].forEach(k => document.getElementById("nw-"+k).value = keep[k]); document.getElementById("nw-loc").value = keep.loc;
+      document.getElementById("nw-by").innerHTML = staffOptions(keep.loc, keep.by); document.getElementById("nw-asset").innerHTML = assetOptions(keep.loc, keep.asset); return; }
+    const id = `WO-${S.next.wo++}`, cat = val("nw-cat");
+    const w = {id, type:val("nw-type"), title, pri:val("nw-pri"), cat, loc, by:val("nw-by"), asset:val("nw-asset")||null, created:Date.now(), report,
+      status:"New", symptoms:"", findings:"", actions:"", resolution:"", faultAt:null, waiting:null, confirmed:false, checklist:TEMPLATES[cat].map(t=>({t,done:false,r:""}))};
+    S.wos[id] = w; logWO(w, `Reported by ${S.staff[w.by].name}: ${title}`); save(); flash(`${id} created. Start work when you get to ${locLabel(L(loc))}.`); location.hash = `#/wo/${id}`; return;
+  }
+  if (a==="receive"){ receiveSubmit(); return; }
+  if (a.startsWith("dp-")){ const x = S.assets[currentId(/^#\/asset\/([^/?]+)/)]; if (x) deployAction(a, x); return; }
+  const w = currentWO(); if (!w) return;
+  if (a==="swap"){ swapAction(w); return; }
+  if (a==="part"){ partAction(w); return; }
+  if (a==="start"){ flash("Work order started."); act(w, "Started work", x => { x.status = "In Progress"; x.started = Date.now(); }); }
+  if (a==="resume"){ flash("Back in progress."); act(w, "Resumed work", x => { x.status = "In Progress"; x.waiting = null; }); }
+  if (a==="wait"){ const r = val("waitreason"); flash(`Set to waiting: ${r}. It moved to the Waiting list.`); act(w, `Set to Waiting: ${r}`, x => { x.status = "Waiting"; x.waiting = {reason:r, since:Date.now()}; }); }
+  if (a==="resolve"){ if (!w.resolution.trim()){ woErr = "Write what fixed it under Result before resolving."; route(); document.getElementById("f-resolution").focus(); return; }
+    flash("Resolved. Confirm the fix with the staff member, then close it."); act(w, `Resolved: ${w.resolution.trim()}`, x => { x.status = "Resolved"; x.resolvedAt = Date.now(); }); }
+  if (a==="close"){ if (!w.confirmed){ woErr = "Tick the box once the staff member confirms it's fixed."; route(); return; } flash("Work order closed."); act(w, "Closed after confirming with staff", x => { x.status = "Closed"; x.closedAt = Date.now(); }); }
+  if (a==="reopen"){ flash("Work order reopened."); act(w, "Reopened", x => { x.status = "In Progress"; x.resolvedAt = null; x.closedAt = null; x.confirmed = false; }); }
+  if (a==="addstep"){ const t = val("newstep").trim(); if (!t) return; flash("Step added."); act(w, `Added step: ${t}`, x => x.checklist.push({t, done:false, r:""})); }
+  if (a==="fault"){ const as = S.assets[w.asset], p = (as.path || buildPath(as))[+b.dataset.i], i = +b.dataset.i;
+    if (w.faultAt===i){ flash("Problem location cleared."); act(w, `Cleared problem location: ${p.k}`, x => x.faultAt = null); }
+    else { flash(`Problem marked at the ${p.k.toLowerCase()} (${p.v}).`); act(w, `Problem found at ${p.k}: ${p.v}`, x => x.faultAt = i); } }
+});
+main.addEventListener("change", e => {
+  const t = e.target;
+  if (t.id==="qcat"){ Q.cat = t.value; renderLanes(); return; }
+  if (t.id==="sfg"){ SF.group = t.value; renderStaffRows(); return; }
+  if (t.id==="afc"){ AF.cls = t.value; renderAssetRows(); return; }
+  if (t.id==="afs"){ AF.status = t.value; renderAssetRows(); return; }
+  if (t.id==="rc-type"){ RC.type = t.value; const d = RECEIVE_TYPES[t.value]; document.getElementById("rc-mfr").value = d.mfr; document.getElementById("rc-model").value = d.model; document.getElementById("rc-specs").value = d.specs || ""; return; }
+  if (t.id==="dp-loc"){ const x = S.assets[currentId(/^#\/asset\/([^/?]+)/)]; document.getElementById("dp-conn").innerHTML = connOptions(t.value, x, ""); return; }
+  if (t.id==="nw-loc"){ document.getElementById("nw-asset").innerHTML = assetOptions(t.value, ""); document.getElementById("nw-by").innerHTML = staffOptions(t.value, val("nw-by")); return; }
+  const w = currentWO(); if (!w) return;
+  if (t.dataset.field){ w[t.dataset.field] = t.value; save(); return; }
+  if (t.id==="confirmed"){ w.confirmed = t.checked; save(); return; }
+  if (t.dataset.act==="stepres"){ w.checklist[+t.dataset.i].r = t.value; save(); return; }
+  if (t.dataset.act==="step"){
+    const s = w.checklist[+t.dataset.i], y = window.scrollY;
+    if (t.checked && w.status==="New"){ w.status = "In Progress"; w.started = Date.now(); logWO(w, "Started work"); flash("Work order started."); }
+    act(w, t.checked ? `Checked "${s.t}"${s.r?`: ${s.r}`:""}` : `Unchecked "${s.t}"`, () => { s.done = t.checked; });
+    window.scrollTo(0, y);
+  }
+});
+main.addEventListener("input", e => {
+  const t = e.target;
+  if (t.id==="qsearch"){ Q.q = t.value; renderLanes(); }
+  if (t.id==="sfq"){ SF.q = t.value; renderStaffRows(); }
+  if (t.id==="afq"){ AF.q = t.value; renderAssetRows(); }
+});
+main.addEventListener("keydown", e => {
+  if (e.key==="Enter" && e.target.id==="newstep"){ e.preventDefault(); main.querySelector('[data-act="addstep"]').click(); }
+  if (e.key==="Enter" && e.target.id==="sq"){ e.preventDefault(); main.querySelector('[data-act="search"]').click(); }
+});
+const resetBtn = document.getElementById("reset"); let armTimer;
+resetBtn.addEventListener("click", () => {
+  if (!resetBtn.classList.contains("arm")){ resetBtn.classList.add("arm"); resetBtn.textContent = "Click again to reset everything";
+    armTimer = setTimeout(() => { resetBtn.classList.remove("arm"); resetBtn.textContent = "Reset demo data"; }, 4000); return; }
+  clearTimeout(armTimer); try{ localStorage.removeItem(KEY); }catch(e){}
+  S = seed(); save(); Q = {q:"",cat:"",tab:"open"}; SF = {q:"",group:""}; AF = {q:"",cls:"",status:"active"};
+  resetBtn.classList.remove("arm"); resetBtn.textContent = "Reset demo data"; flash("Demo data reset to the starting state."); if (location.hash==="#/queue") route(); else location.hash = "#/queue";
+});
+
+document.getElementById("skip").addEventListener("click", () => { main.focus(); });
+
+/* ============ START ============ */
+load();
+route();
+
+</script>
+</body>
+</html>
