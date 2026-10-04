@@ -2,6 +2,8 @@
 
 **SIMULATED ENVIRONMENT • Portfolio Demonstration.** Leggee Tech Ops is a small, self-contained web app that simulates a school technician's day at an elementary school: the work queue, the rooms, the staff, the equipment inventory, troubleshooting, repairs and new-equipment setup. Every room, device, serial number, IP address and work order in it is fictional. It is not connected to, and does not represent, any school district's real systems.
 
+**Live demo:** https://evan-dawkins.github.io/leggee-tech-ops/
+
 ![Work queue](screenshots/01-work-queue.png)
 
 ## Why I built it
