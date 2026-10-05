@@ -1,166 +1,185 @@
 # Testing
 
-This document records what was actually tested, by whom, and what was found. It separates **manual tests I performed** from **automated checks I did not perform**.
+This page explains how I checked that the important parts of Leggee Tech Ops work, what I found, and what I did not check. It keeps what I tested myself separate from what an automated tool checked without me.
 
-## Summary
+## The short version
 
-| | |
-|---|---|
-| App version tested | `index.html` (identical to `2026-10-01-leggee-techops-v7.html`) |
-| Date of manual pass | October 4, 2026 |
-| Environment | Google Chrome on a Mac (version not recorded), opened as a local file (`file://`), 1 normal window |
-| Manual tests | 11 (T0 to T10): **9 passed, 2 failed and accepted as known issues** |
-| Issues found | 2 (one P2, one P1), plus 4 minor observations |
-| Issues fixed | None. Both issues are documented as known limitations by decision |
+- I tested by hand 11 times, walking through a technician's workflows in Chrome on a Mac on October 4, 2026.
+- **9 tests passed. 2 found real problems.** I wrote both up instead of fixing them.
+- Separately, 78 automated checks were run during development by Claude, the AI assistant I built the app with. I did not run those.
+- Neither kind of testing covers everything. The list of what I did not test by hand is below.
+- No problems were fixed after testing. Both are documented as known limitations.
 
-**How the manual pass was run.** I performed every click and typed every value myself, in the browser, and reported what I saw. The step-by-step instructions and expected results were prepared by Claude (the AI assistant used to build the app), one step at a time, and I reported the actual result after each step. A result is marked Pass only when I reported it matched. Where I reported "it all worked" without listing exact values, the notes say so.
+| Test | What I tested | Result |
+|---|---|---|
+| T0 | The app opens and resets | Pass |
+| T1 | The work queue and its filters | Pass |
+| T2 | Starting a work order and recording checks | Pass |
+| T3 | The connection path | Pass |
+| T4 | Resolving, closing and reopening | Pass |
+| T5 | History on the room and equipment pages | **Problem found (minor)** |
+| T6 | Equipment search and filters | Pass |
+| T7 | Receiving and setting up new equipment | Pass |
+| T8 | Swapping a device | **Problem found (serious)** |
+| T9 | Replacing a part | Pass |
+| T10 | Saving changes and resetting | Pass |
 
-## Manual test results
+## How I tested
 
-| ID | Test | Result | Severity |
-|---|---|---|---|
-| T0 | Environment and first load | Pass | |
-| T1 | Work queue and filtering | Pass | |
-| T2 | Start a work order and document checks | Pass | |
-| T3 | Connection path | Pass | |
-| T4 | Resolve and close | Pass | |
-| T5 | Room and equipment history | **Fail (accepted)** | P2 |
-| T6 | Equipment inventory and search | Pass | |
-| T7 | Receive and set up equipment | Pass | |
-| T8 | Swap equipment | **Fail (accepted)** | P1 |
-| T9 | Replace a part | Pass | |
-| T10 | Persistence and reset | Pass | |
+### By hand
 
-### T0 Environment and first load
-- **Purpose:** Confirm the file loads and resets cleanly in the browser I will demo from.
-- **Steps:** Open the downloaded file in Chrome. Click **Reset demo data** twice.
-- **Expected:** A reset confirmation, the Today's work page, a scoreboard reading 10 To do / 3 High priority / 2 Waiting / 0 Resolved today, the striped sidebar band, and the "SIMULATED ENVIRONMENT" label.
-- **Actual:** Reported as matching. Individual scoreboard values were not itemized.
+I opened the app and worked through it the way a technician would, one step at a time. Claude prepared the instructions: what to click, what should happen, and what would count as a failure. I did every click myself, typed the information, and reported what I actually saw. A test counted as a pass only if what I reported matched what was supposed to happen. Where I said "it all worked" without reading out every value, the notes say so.
+
+### With automated checks
+
+An automated check is a program that clicks through an app on its own and verifies the results. During development, Claude ran 78 of them with a tool called Playwright, and no errors were reported. I did not run them, and the script is not included in this repository.
+
+They show that the main paths through the app produced the expected results and caused no errors in a Chrome-type browser on desktop-sized screens. They do not show whether the app is clear to use, whether it works in other browsers or on other devices, or whether a path nobody scripted is safe. Both problems below got past all 78 checks.
+
+## What I checked after the click
+
+A button working is not enough. I wanted to know whether the records stayed correct afterward. In my hand tests I checked these:
+
+- **Swapping a monitor.** The old monitor became "In Repair" and moved to Tech Storage. The new monitor took over the room, the teacher and the USB-C hub connection. The swap was written into the work order's history and onto the new monitor's history.
+- **Replacing a part.** Changing the memory updated the laptop's hardware details, and replacing a motherboard left them alone. Both replacements were written into the history.
+- **Setting up a new device.** Every step wrote a history entry on both the device and the work order.
+- **Closing and reopening.** The status, the buttons and the history followed each change. Closing was blocked until the teacher's confirmation was ticked. After reopening, my typed notes and the marked problem point were still there.
+- **Rooms and history.** Room 161 showed the closed work order's history, and the laptop's page showed the right room, person and serial number.
+- **Saving.** After a refresh, and after closing and reopening the page, my changes were still there. Reset demo data put everything back to the starting state, including clearing the damage from the second-swap problem below.
+- **Mistakes.** The app refused, with a plain message, a duplicate serial number, a serial number that didn't match the label, a badly formatted MAC address, missing wall jack and switch details, an unfinished install checklist, and a work order with no result written.
+
+## What I found
+
+I found two real problems and four small things.
+
+**Problem 1: History list cut-off (minor).** A device's History shows only its 25 newest entries, and room and staff pages show 12. It doesn't say when older entries are hidden. The entries are still saved; only the display is cut off. I found it when the oldest entries on the laptop's page, such as the memory upgrade and the original receipt, were missing after a lot of testing. *Called ISSUE-1 in the log below.*
+- Workaround: press Reset demo data before a demo.
+
+**Problem 2: The second swap (serious, but unlikely in a normal demo).** After a swap, the Swap button stays on the page. Clicking it a second time swaps in another spare. That spare then shows as "Deployed" in Tech Storage with nobody assigned, and the work order names the wrong replacement. Claude first spotted this by reading the app's code and reproducing it in its own copy. I then confirmed it by clicking. In Claude's tests, an accidental double-click did not trigger it. It takes a deliberate second click. *Called ISSUE-2 below.*
+- Workaround: click Swap once only.
+- Not checked: whether the first replacement monitor stayed in Room 152, the room of that work order, after the second swap.
+
+**Four small things:**
+1. In the starting data, one work order shows two checks ticked but only one "Checked" line in its history.
+2. On an equipment page, the Software list sits well below the setup steps, off screen on a laptop.
+3. A newly received laptop shows only 4 points in its connection path, because nothing links it to a USB-C hub. That is how the app is built, not a mistake.
+4. I did not check what happened to the first replacement monitor after the second swap (see above).
+
+**How I labeled how serious things are:**
+- **Serious (P1):** a record could end up wrong.
+- **Minor (P2):** a display problem; the saved data is fine.
+- **Small (P3):** cosmetic, or something to improve later.
+
+## What I did not test by hand
+
+These were covered only by the automated checks:
+- Creating a new work order
+- Putting a work order in Waiting
+- The Staff list and staff pages, and moving a staff member to another room
+- The Locations list, and renumbering a room
+- Moving equipment between rooms, and retiring equipment
+- Deploying a Chromebook to a cart
+- The Search page
+- The "page not found" screen and the skip-to-content link
+- Windows narrower than a laptop screen
+
+Also not tested: any browser other than Chrome, any phone or tablet, and the Chrome version number was not recorded.
+
+## The full test log
+
+Each entry says what I did, what should have happened, what happened, and the result.
+
+### T0 The app opens and resets
+- **Did:** Opened the downloaded app in Chrome and clicked Reset demo data twice.
+- **Should happen:** A reset message, the Today's work page, a scoreboard of 10 to do, 3 high priority, 2 waiting and 0 resolved today, the striped band on the sidebar, and the SIMULATED ENVIRONMENT label.
+- **Happened:** I reported everything matched. I did not read out each scoreboard number.
 - **Result:** Pass.
 
-### T1 Work queue and filtering
-- **Purpose:** Verify the home screen groups and filters work correctly.
-- **Steps:** (1) Count rows per priority group. (2) Type `161` in the filter. (3) Choose category Printer. (4) Click By route. (5) Open Resolved and closed.
-- **Expected:** High 3, Medium 4, Low 3, Waiting 2. `161` leaves 1 row. Printer leaves 1 row. By route shows wing groups with stop lists. Resolved tab shows 8 rows.
-- **Actual:** All five checks reported as passing.
+### T1 The work queue and its filters
+- **Did:** Counted the rows under each priority. Typed `161` in the filter. Chose the Printer category. Switched to By route. Opened Resolved and closed.
+- **Should happen:** High 3, Medium 4, Low 3, Waiting 2. `161` leaves 1 row. Printer leaves 1 row. By route groups jobs by wing with a list of stops. Resolved and closed shows 8 rows.
+- **Happened:** All five checks passed.
 - **Result:** Pass.
 
-### T2 Start a work order and document checks (WO-1042)
-- **Purpose:** Verify a technician can start a job and record what was checked.
-- **Steps:** Open WO-1042. Start work. Type a result for the first two checks and tick them. Add a custom step. Read History.
-- **Expected:** Status In Progress. "2 of 9 checked." Five History lines (reported, started, two checks with results, added step).
-- **Actual:** "2 of 9 checked" and History matching were reported.
+### T2 Starting a work order and recording checks (WO-1042)
+- **Did:** Opened the Room 161 work order and started work. Typed a result for the first two checks and ticked them. Added my own step. Read the history.
+- **Should happen:** Status In Progress. "2 of 9 checked." Five history lines: the report, started, the two checks with my results, and the added step.
+- **Happened:** The "2 of 9 checked" count and the history matched.
 - **Result:** Pass.
-- **Notes:** Whether the page jumps to the top when ticking a box was not reported.
+- **Note:** I didn't report whether the page jumps to the top when a box is ticked.
 
-### T3 Connection path
-- **Purpose:** Verify the physical-path view and problem marking.
-- **Steps:** Confirm the five points. Click Patch panel to mark it. Click again to clear. Click again to re-mark.
-- **Expected:** Laptop `LEG-LT24161`, USB-C hub (DA310, `LEG-24318`), Wall jack `161-A`, Patch panel `IDF-B PP2-14`, Network switch port `IDF-B-SW02 Gi1/0/14`. Marking turns the point red with "Problem found here", shows a confirmation, and writes a History line. Clearing and re-marking behave the same way.
-- **Actual:** All five points were present. Marking, clearing and re-marking worked as expected.
+### T3 The connection path
+- **Did:** Confirmed the five points. Clicked the patch panel to mark it. Clicked again to clear it. Clicked again to mark it.
+- **Should happen:** Laptop, USB-C hub, wall jack 161-A, patch panel IDF-B PP2-14, and switch port IDF-B-SW02 Gi1/0/14, in that order. Marking turns the point red with "Problem found here," shows a message and adds a history line. Clearing and re-marking do the same.
+- **Happened:** All five points were there, and marking, clearing and re-marking worked.
 - **Result:** Pass.
-- **Notes:** I also clicked the USB-C hub point once during testing, which logged a "Problem found at USB-C hub" event. That is expected behavior.
+- **Note:** I also clicked the USB-C hub point once while testing. That correctly added a history line.
 
-### T4 Resolve and close
-- **Purpose:** Verify the work order lifecycle and its guard rules.
-- **Steps:** Click Resolve with an empty Result. Fill in What I found, What I did and Result, then Resolve. Close (box ticked). Reopen. Resolve again. Close without ticking the confirmation. Tick and Close. Review the queue.
-- **Expected:** An empty Result is blocked with a message. Resolved shows the confirmation checkbox. Close is blocked without confirmation. Closed shows only Reopen and locks the fields. The queue shows 9 To do / 2 High / 2 Waiting / 1 Resolved today, with WO-1042 first in Resolved and closed.
-- **Actual:** All as expected. A screenshot of the Resolved and closed list confirmed the scoreboard and the 9 rows.
+### T4 Resolving, closing and reopening
+- **Did:** Clicked Resolve with the Result box empty. Filled in what I found, what I did and the result, then resolved. Closed it. Reopened it. Resolved it again. Tried to close without the confirmation ticked. Ticked it and closed. Checked the queue.
+- **Should happen:** An empty Result is refused. A resolved order shows the confirmation tick box. Closing is refused without the tick. A closed order shows only Reopen and its fields are locked. The queue shows 9 to do, 2 high priority, 2 waiting and 1 resolved today, with this order first in Resolved and closed.
+- **Happened:** All of it matched. A screenshot of the Resolved and closed list confirmed the numbers and the 9 rows.
 - **Result:** Pass.
-- **Notes:** On the first attempt I ticked the confirmation before clicking Close, so the blocked-without-confirmation rule was retested after Reopen and passed.
+- **Note:** The first time, I ticked the confirmation before clicking Close, so I tested the refusal again after reopening, and it passed.
 
-### T5 Room and equipment history
-- **Purpose:** Verify service history is shown on the room and device pages.
-- **Steps:** Open Room 161. Open laptop `LEG-24161`. Read its History.
-- **Expected:** Room 161 shows WO-1042 events newest first and 7 pieces of equipment. The laptop shows its facts row and its full history, including the RAM upgrade and "Received and tagged" at the bottom.
-- **Actual:** Room 161 and the laptop facts were correct. The History list showed exactly 25 lines, and the oldest records (RAM upgrade, deployment, receipt) were missing.
-- **Result:** **Fail (accepted).** See ISSUE-1.
-- **Severity:** P2.
+### T5 History on the room and equipment pages
+- **Did:** Opened Room 161, then the laptop `LEG-24161`, and read its history.
+- **Should happen:** Room 161 shows the work order's newest entries first and 7 pieces of equipment. The laptop shows its status, room, person, serial and warranty, and its whole history down to the memory upgrade and the original receipt.
+- **Happened:** The room page and the laptop's details were right. The history list showed exactly 25 lines, and the oldest ones were missing.
+- **Result:** **Problem found (minor, P2).** See Problem 1.
 
-### T6 Equipment inventory and search
-- **Purpose:** Verify inventory lookup and filters.
-- **Steps:** Search the serial `7HQK2X3`, the IP `10.58.21.61`, `bessey`, and `zzzz`. Filter by kind Printers. Filter by status In Repair.
-- **Expected:** 1 row; 1 row; 4 rows (laptop, monitor, USB-C hub, keyboard and mouse); the no-match message; 4 printers; 2 In Repair (`LEG-24102`, `LEG-25317`).
-- **Actual:** All matched exactly, including tags, models, rooms and statuses.
+### T6 Equipment search and filters
+- **Did:** Searched the serial number `7HQK2X3`, the IP address `10.58.21.61`, the name `bessey` and the nonsense word `zzzz`. Filtered by Printers. Filtered by In Repair.
+- **Should happen:** 1 row; 1 row; 4 rows (laptop, monitor, USB-C hub, keyboard and mouse); a "no equipment matches" message; 4 printers; 2 items In Repair.
+- **Happened:** All matched exactly, including tags, models, rooms and statuses.
 - **Result:** Pass.
 
-### T7 Receive and set up equipment (WO-1053)
-- **Purpose:** Verify the full equipment lifecycle and its guard rules.
-- **Steps:** Open WO-1053 and Receive equipment. Try a duplicate serial. Receive a laptop with serial `9ZZ1X44`. Try a wrong serial, then the right one. Apply the software profile. Try a bad MAC, then a missing jack/switch/port, then a valid network save. Assign to Kristi Wise, Room 195. Try to deploy with one check unticked, then deploy.
-- **Expected:** Each bad input is refused with a plain message. The valid path ends with the device Deployed, and every step writes a History line.
-- **Actual:** All guards worked: duplicate serial refused (naming `LEG-24161`), wrong serial refused, bad MAC refused, missing jack/switch/port refused, incomplete checklist refused. The new device `LEG-30527` ended Deployed in Room 195 assigned to Kristi Wise, with correct Connection, Hardware, 6-app Software list and Network sections. The device History had the six expected lines. WO-1053 showed "Equipment received 1" and its own 7-line History.
+### T7 Receiving and setting up new equipment (WO-1053)
+- **Did:** Opened the receiving work order. Tried a duplicate serial number. Received a laptop with serial `9ZZ1X44`. Tried a wrong serial number, then the right one. Applied the software profile. Tried a bad MAC address, then missing wall jack, switch and port, then a correct network entry. Assigned it to Kristi Wise in Room 195. Tried to deploy with one check unticked, then deployed it.
+- **Should happen:** Each mistake is refused with a plain message, and the correct path ends with the device Deployed and a history entry for each step.
+- **Happened:** Every mistake was refused. The new laptop ended Deployed in Room 195 with the right connection path, hardware, 6-app software list and network details. Its history had the 6 expected lines, and the work order showed the laptop under "Equipment received" with its own 7-line history.
 - **Result:** Pass.
-- **Notes:** The status chip on WO-1053 and some green confirmation messages were not reported. The new laptop's connection path shows 4 points (no hub) because nothing links it to a hub. That is a design limitation, not a defect.
+- **Note:** I didn't report the status label on the work order, or some of the green confirmation messages.
 
-### T8 Swap equipment (WO-1045)
-- **Purpose:** Verify a hardware swap keeps inventory accurate.
-- **Steps:** View the Repair section. Swap `LEG-23552` for `LEG-30508`. Check the new monitor's page. Click Swap a second time.
-- **Expected:** First swap: the new monitor takes over Room 152, Carl Isonhart and his hub; the old monitor goes to In Repair in Room 107; both record the swap. Second click: should be refused.
-- **Actual:** The first swap was correct on every point. The second click was **accepted**: it reported "Replacement LEG-30509 assigned to Room 107", changed the "Replaced by" line to `LEG-30509`, and `LEG-30509` then showed as Deployed in Room 107 with no assignee.
-- **Result:** **Fail (accepted).** See ISSUE-2.
-- **Severity:** P1.
-- **Notes:** This problem was first identified by Claude through code review and reproduction in its own test copy, and then confirmed by my manual click. Whether `LEG-30508` stayed in Room 152 after the second swap was not checked manually.
+### T8 Swapping a device (WO-1045)
+- **Did:** Looked at the Repair section. Swapped the flickering monitor `LEG-23552` for the spare `LEG-30508`. Checked the new monitor's page. Clicked Swap a second time.
+- **Should happen:** After the first swap, the new monitor takes over the room, the teacher and the hub, and the old one moves to Tech Storage as In Repair, with both recorded. The second click should be refused.
+- **Happened:** The first swap was correct in every way I checked. The second click was accepted: the message said "assigned to Room 107," the work order's "Replaced by" line changed to `LEG-30509`, and that spare showed as Deployed in Room 107 with nobody assigned.
+- **Result:** **Problem found (serious, P1).** See Problem 2.
 
-### T9 Replace a part (WO-1052)
-- **Purpose:** Verify part replacements are logged and update specs.
-- **Steps:** Start WO-1052. Replace RAM (16 GB to 32 GB). Replace Motherboard (Original board to Replacement board, same model).
-- **Expected:** Confirmation messages; What I did gains both lines; Specs becomes `Core i5-1345U, 32 GB RAM, 256 GB SSD` and is unchanged by the motherboard entry; History gains both lines.
-- **Actual:** Matched. The motherboard History line was confirmed after the refresh in T10.
+### T9 Replacing a part (WO-1052)
+- **Did:** Started the Art Room work order. Replaced the memory (16 GB to 32 GB). Replaced the motherboard (original to replacement, same model).
+- **Should happen:** A message each time, both lines in "What I did," the hardware details showing 32 GB and staying that way after the motherboard entry, and both replacements in the history.
+- **Happened:** All matched. The motherboard's history line was confirmed after the refresh in T10.
 - **Result:** Pass.
 
-### T10 Persistence and reset
-- **Purpose:** Verify saved data survives and Reset restores the starting state.
-- **Steps:** Refresh. Close the tab and reopen the file. Click Reset demo data. Check the scoreboard, the received laptop, the next tag counter, and `LEG-30509`.
-- **Expected:** Work survives a refresh and a close/reopen. After Reset: scoreboard 10 / 3 / 2 / 0, `LEG-30527` gone, next tag `LEG-30527`, `LEG-30509` back to In Stock in Room 107.
-- **Actual:** All matched. The scoreboard after close/reopen read 9 / 2 / 2 / 1, and the received laptop was still present.
+### T10 Saving changes and resetting
+- **Did:** Refreshed the page. Closed the tab and reopened the file. Clicked Reset demo data. Checked the scoreboard, the laptop I had received, the next equipment tag, and the spare monitor `LEG-30509`.
+- **Should happen:** My work survives a refresh and a reopen. After a reset: the scoreboard returns to 10, 3, 2 and 0, the received laptop is gone, the next tag is `LEG-30527` again, and `LEG-30509` is back to In Stock in Room 107.
+- **Happened:** All matched. After the reopen, the scoreboard read 9, 2, 2 and 1 and the received laptop was still there.
 - **Result:** Pass.
-- **Notes:** After Reset, I reported "it all worked" without itemizing every value.
+- **Note:** After the reset I reported "it all worked" without listing every value.
 
-### Workflow coverage
+### What the manual tests covered
 
-| Workflow | Covered by |
+| Workflow | Tests |
 |---|---|
 | Work queue and filtering | T1 |
 | Opening and working a work order | T2 |
-| Troubleshooting and documenting checks | T2 |
-| Problem in the connection path | T3 |
+| Troubleshooting and recording checks | T2 |
+| Marking a problem on the connection path | T3 |
 | Resolving and closing | T4 |
-| Inventory and search | T6 |
+| Equipment inventory and search | T6 |
 | Receiving and setting up equipment | T7 |
 | Assigning equipment to a room and person | T7 |
 | Swapping equipment | T8 |
 | Replacing a hardware part | T9 |
-| History and service events | T5, T7, T8, T9 |
-| Reset and persistence | T10 |
+| History and records | T5, T7, T8, T9 |
+| Saving and resetting | T10 |
 
-## Automated checks (reported, not performed by me)
+## Environment
 
-During development, the AI assistant that generated the code ran **78 scripted click-through checks** in headless Chromium using Playwright, with **zero console errors**, and reviewed screenshots at 1280, 1366, 1440 and 900 pixels wide. I did not run these. The script is not included in this repository.
-
-**What they show:** scripted paths through most screens produced the expected stored state, and the page raised no JavaScript errors in Chromium at desktop sizes.
-
-**What they do not show:** whether the interface is clear to a person, whether anything looks wrong, behavior in other browsers or on other devices, or correctness on any path the script did not take. The two issues below passed through all 78 checks undetected.
-
-### Covered by automated checks only (not manually tested by me)
-Creating a new work order, the Waiting status, the Staff list and staff pages, moving a staff member, the Locations list, renumbering a room, moving and retiring equipment, deploying a Chromebook to a cart (WO-1051), the global Search page, the "page not found" screen, the skip-to-content link, and layouts narrower than a laptop window.
-
-## Issues
-
-| ID | Severity | Description | Status |
-|---|---|---|---|
-| ISSUE-1 | P2 | Device History shows only the latest 25 events, and Room and Staff History show the latest 12, with no notice that older records are hidden. The records are stored; only the display is cut off. | Known limitation. Press Reset before a demo. |
-| ISSUE-2 | P1 | After a swap, the Swap equipment box stays on the page. Clicking it again swaps a second spare in: that spare is marked Deployed in Tech Storage with no assignee, and the work order's "Replaced by" line points at the wrong device. | Known limitation. Click Swap once only. |
-
-### Minor observations
-- **OBS-1 (P3):** The starting data for WO-1045 shows 2 checks ticked but only one "Checked" History line.
-- **OBS-2 (P3):** On an equipment page, the Software list sits well below the Equipment setup box and is off-screen on a laptop window.
-- **OBS-3 (design limitation):** A newly received laptop shows 4 connection points because it has no hub linked.
-- **OBS-4 (not verified):** After a second swap, I did not check whether the first replacement monitor remained in Room 152.
-
-## Remaining issues and limitations
-- ISSUE-1 and ISSUE-2 above, unfixed by decision.
-- The barcode on the equipment tag label is decorative and does not scan.
-- Saved data is kept per browser. After loading a new version, press Reset demo data.
-- Desktop only. There is no phone layout.
-- The Equipment list shows up to 300 rows.
-- Not tested in browsers other than Chrome.
+- **Browser:** Google Chrome on a Mac (version not recorded)
+- **How the app was opened:** as a file saved on my computer
+- **Version tested:** the same app as `index.html` in this repository, which I saved earlier as `2026-10-01-leggee-techops-v7.html`. The live demo link serves the same file.
+- **Date:** October 4, 2026
